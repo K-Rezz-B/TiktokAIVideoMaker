@@ -109,8 +109,8 @@ def list_projects():
 
 
 @app.post("/api/projects")
-def create_project():
-    return projects.create()
+def create_project(fmt: str = "prank"):
+    return projects.create(fmt=fmt)
 
 
 @app.get("/api/projects/{pid}")
@@ -247,6 +247,8 @@ def apply_script(p: dict, s: dict) -> dict:
         if m.get("type") == "image":
             ref = projects.SOURCE_REF if m.get("image") == "source" else projects.RESULT_REF
             msgs.append({"from": who, "type": "image", "image": ref, "text": "", "speak": False})
+        elif m.get("type") == "sticker" and (m.get("text") or "").strip():
+            msgs.append({"from": who, "type": "sticker", "text": m["text"].strip(), "speak": False})
         elif (m.get("text") or "").strip():
             msgs.append({"from": who, "type": "text", "text": m["text"].strip(), "speak": True})
     p["chat"]["messages"] = msgs
@@ -257,7 +259,7 @@ def apply_script(p: dict, s: dict) -> dict:
 def write_script(pid: str, body: ScriptRequest):
     p = _load(pid)
     try:
-        s = gemini.write_script(body.idea, body.character, projects.image_path(p, projects.SOURCE_REF))
+        s = gemini.write_script(body.idea, body.character, projects.image_path(p, projects.SOURCE_REF), p["format"])
     except Exception as exc:
         _fail(exc)
     p = _load(pid)
@@ -280,6 +282,8 @@ class IdeaIn(BaseModel):
     text: str = ""
     character: str = ""
     notes: str = ""
+    format: str = "prank"
+    views: int = 0
     bulk: str = ""  # plusieurs idées, une par ligne
 
 
@@ -287,8 +291,8 @@ class IdeaIn(BaseModel):
 def add_ideas(body: IdeaIn):
     try:
         if body.bulk.strip():
-            return ideas.add_many(body.bulk, body.character)
-        return [ideas.add(body.text, body.character, body.notes)]
+            return ideas.add_many(body.bulk, body.character, body.format)
+        return [ideas.add(body.text, body.character, body.notes, body.format, body.views)]
     except ValueError as exc:
         _fail(exc)
 
@@ -315,17 +319,17 @@ def project_from_idea(idea_id: str):
         raise HTTPException(404, "Idée introuvable")
     if idea.get("project_id") and idea["project_id"] in {p["id"] for p in projects.list_all()}:
         return {"project_id": idea["project_id"]}
-    p = projects.default_project(idea["text"][:60])
+    p = projects.apply_format(projects.default_project(idea["text"][:60]), idea.get("format", "prank"))
     p["idea"] = idea["text"]
-    p["character"] = idea["character"] or p["character"]
+    p["character"] = idea["character"] or ("" if p["format"] == "story" else p["character"])
     projects.save(p)
     ideas.update(idea_id, {"project_id": p["id"], "status": "doing" if idea["status"] == "todo" else idea["status"]})
     return {"project_id": p["id"]}
 
 
 @app.get("/api/ideas/prompt")
-def ideas_prompt():
-    return {"prompt": ideas.suggest_prompt()}
+def ideas_prompt(fmt: str = "prank"):
+    return {"prompt": ideas.suggest_prompt(fmt)}
 
 
 # ------------------ Mode manuel (Gemini gratuit, sans clé) ----------------
@@ -335,7 +339,8 @@ def get_prompts(pid: str):
     p = _load(pid)
     a = p["ai_app"]
     return {
-        "script": gemini.script_prompt(p.get("idea", ""), p.get("character", "")),
+        "script": gemini.story_prompt(p.get("idea", "")) if p["format"] == "story"
+        else gemini.script_prompt(p.get("idea", ""), p.get("character", "")),
         "edit": gemini.edit_prompt(a["edit_prompt"]) if a.get("edit_prompt") else "",
         "photo": gemini.photo_prompt(a.get("photo_prompt") or p.get("idea", "")) if (a.get("photo_prompt") or p.get("idea")) else "",
     }
@@ -412,17 +417,20 @@ def auto(pid: str, body: AutoRequest):
         p["idea"], p["character"] = body.idea, body.character
         progress(3, "Écriture du script avec Gemini…")
         src = projects.image_path(p, projects.SOURCE_REF)
-        script = gemini.write_script(body.idea, body.character, src)
+        story = p["format"] == "story"
+        script = gemini.write_script(body.idea, body.character, src, p["format"])
         apply_script(p, script)
         projects.save(p)
         if not src:
-            progress(15, "Création de la photo d'origine…")
+            progress(15, "Création de la photo d'accroche…" if story else "Création de la photo d'origine…")
             data, mime = gemini.create_photo(p["ai_app"]["photo_prompt"] or body.idea)
-            img = projects.add_image(p, data, "Photo originale", "generated", p["ai_app"]["photo_prompt"],
-                                     ext=EXT_BY_MIME.get(mime, ".png"))
+            img = projects.add_image(p, data, "Photo d'accroche" if story else "Photo originale", "generated",
+                                     p["ai_app"]["photo_prompt"], ext=EXT_BY_MIME.get(mime, ".png"))
             p["ai_app"]["source_image"] = img["id"]
             projects.save(p)
             src = projects.image_path(p, projects.SOURCE_REF)
+        if story:  # pas de retouche dans le format POV
+            return _render(pid, lambda pct, msg: progress(30 + pct * 0.7, msg)) if body.render else {"video": None}
         progress(30, "Retouche de la photo avec Gemini…")
         data, mime = gemini.edit_photo(src, p["ai_app"]["edit_prompt"] or body.idea)
         img = projects.add_image(p, data, "Photo modifiée", "edited", p["ai_app"]["edit_prompt"],

@@ -47,6 +47,18 @@ main { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 22px; pa
 .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
 
 body.no-key .api-only { display: none !important; }
+body.fmt-story .only-prank, body.fmt-prank .only-story { display: none !important; }
+body:not(.chat-classic) .classic-only { display: none !important; }
+.formats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 8px 0 4px; }
+.formats button { text-align: left; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
+.formats button small { color: var(--muted); font-size: 12px; }
+.formats button.on { border-color: var(--accent); background: rgba(139,92,246,.14); }
+.msg .sticker-input { margin: 0; flex: 1; font-size: 18px; }
+.msg.me .sticker-input { border-left: 3px solid var(--blue); }
+.msg.them .sticker-input { border-left: 3px solid #9ca3af; }
+.chip-fmt { border-radius: 10px; padding: 1px 8px; font-weight: 600; font-size: 11.5px; }
+.chip-fmt.prank { background: rgba(250,204,21,.14); color: #fde68a; }
+.chip-fmt.story { background: rgba(56,189,248,.14); color: #bae6fd; }
 .steps { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
 .step { background: var(--panel2); border-radius: 12px; padding: 12px 14px; font-size: 13.5px; color: #d5d7de; }
 .step > b { color: var(--accent); margin-right: 4px; }
@@ -112,7 +124,10 @@ dialog .actions { justify-content: flex-end; }
 .idea-form label.grow { flex: 1 1 260px; }
 .idea-form button { margin-bottom: 1px; }
 code { background: #111318; border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; font-size: 12.5px; }
+.filters { display: flex; gap: 10px; }
 .filters input { max-width: 360px; margin: 0; }
+.filters select { width: 220px; margin: 0; }
+.idea-form label.fmt { flex: 0 0 190px; }
 .board { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; align-items: start; }
 .column { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 12px; min-height: 160px; transition: border-color .15s; }
 .column.over { border-color: var(--accent); background: rgba(139,92,246,.06); }

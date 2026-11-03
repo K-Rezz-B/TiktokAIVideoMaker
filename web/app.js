@@ -115,8 +115,37 @@ function escapeHtml(s) {
   return String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 }
 
+/* ------------------------------ Formats ---------------------------------- */
+// Même réglages par défaut que FORMAT_DEFAULTS dans tiktokmaker/projects.py
+const FORMAT_DEFAULTS = {
+  prank: { hook: { style: "outline", zoom: true, image: "@result" },
+           chat: { style: "modern", layout: "scroll", time: "16:21", text_size: 13.5 }, ai_app: { enabled: true } },
+  story: { hook: { style: "box", zoom: false, image: "@source" },
+           chat: { style: "classic", layout: "pages", time: "00:00", text_size: 15.5 }, ai_app: { enabled: false },
+           voices: { narrator: "fr-FR-DeniseNeural", me: "fr-FR-DeniseNeural", them: "fr-FR-HenriNeural" } },
+};
+
+function setFormat(fmt) {
+  if (project.format === fmt) return;
+  project.format = fmt;
+  for (const [section, values] of Object.entries(FORMAT_DEFAULTS[fmt])) Object.assign(project[section], values);
+  previewScene = fmt === "story" ? "hook" : "chat";
+  renderAll();
+  scheduleSave();
+}
+
+function updateFormatUI() {
+  const story = project.format === "story";
+  document.body.classList.toggle("fmt-story", story);
+  document.body.classList.toggle("fmt-prank", !story);
+  document.body.classList.toggle("chat-classic", project.chat.style === "classic");
+  $$("#formatPicker button").forEach(b => b.classList.toggle("on", b.dataset.format === (project.format || "prank")));
+  if (story && (previewScene === "app" || previewScene === "gen")) previewScene = "hook";
+}
+
 /* ------------------------------ Rendu UI --------------------------------- */
 function renderAll() {
+  updateFormatUI();
   $$("[data-images]").forEach(sel => {
     sel.innerHTML = imageOptions().map(o => `<option value="${o.v}">${escapeHtml(o.l)}</option>`).join("");
   });
@@ -175,8 +204,10 @@ function renderMessages() {
       <button class="who" data-act="who" title="Changer l'expéditeur">${m.from === "me" ? "Moi" : "Lui"}</button>
       ${m.type === "image"
         ? `<select data-field="image">${opts.map(o => `<option value="${o.v}" ${o.v === m.image ? "selected" : ""}>${escapeHtml(o.l)}</option>`).join("")}</select>`
+        : m.type === "sticker"
+        ? `<input data-field="text" class="sticker-input" value="${escapeHtml(m.text)}" placeholder="Émoji(s) envoyés en grand : 😭🤡">`
         : `<textarea data-field="text" rows="1">${escapeHtml(m.text)}</textarea>`}
-      ${m.type === "image" ? `<span class="spk"></span>` :
+      ${m.type === "image" || m.type === "sticker" ? `<span class="spk"></span>` :
         `<label class="spk" title="Lire à voix haute"><input type="checkbox" data-field="speak" ${m.speak !== false ? "checked" : ""}>🔊</label>`}
       <button class="ghost" data-act="up" title="Monter">↑</button>
       <button class="ghost" data-act="down" title="Descendre">↓</button>
@@ -223,7 +254,8 @@ async function testVoice(who) {
 function previewState() {
   const c = project.chat;
   if (previewScene === "hook") {
-    return { scene: "hook", hook: { image: imageUrl(project.hook.image || "@result"), text: project.hook.text, zoom: 1 } };
+    return { scene: "hook", hook: { image: imageUrl(project.hook.image || "@result"), text: project.hook.text, zoom: 1,
+                                    style: project.hook.style } };
   }
   if (previewScene === "app" || previewScene === "gen") {
     const a = project.ai_app;
@@ -235,8 +267,10 @@ function previewState() {
   const end = previewIndex === null ? c.messages.length : previewIndex + 1;
   const msgs = c.messages.slice(0, end)
     .filter(m => m.type === "image" || (m.text || "").trim())
-    .map(m => m.type === "image" ? { from: m.from, type: "image", image: imageUrl(m.image) } : { from: m.from, type: "text", text: m.text });
-  return { scene: "chat", chat: { contact: c.contact_name, time: c.time, textSize: c.text_size, messages: msgs, anim: 1 } };
+    .map(m => m.type === "image" ? { from: m.from, type: "image", image: imageUrl(m.image) }
+      : { from: m.from, type: m.type === "sticker" ? "sticker" : "text", text: m.text });
+  return { scene: "chat", chat: { contact: c.contact_name, time: c.time, textSize: c.text_size, messages: msgs, anim: 1,
+                                  style: c.style, layout: c.layout, carrier: c.carrier, battery: c.battery } };
 }
 
 let previewQueued = false;
@@ -289,6 +323,8 @@ function bindEvents() {
       if (el.dataset.path === "hook.text") previewScene = "hook";
       if (el.dataset.path.startsWith("ai_app.prompt") || el.dataset.path === "ai_app.app_name") previewScene = "app";
       if (el.dataset.path.startsWith("chat.")) previewScene = "chat";
+      if (el.dataset.path === "hook.style") previewScene = "hook";
+      updateFormatUI();
       updateShownValues();
       scheduleSave();
       updatePreview();
@@ -330,8 +366,11 @@ function bindEvents() {
 
   $$("[data-add]").forEach(b => b.addEventListener("click", () => {
     const kind = b.dataset.add;
+    const last = project.chat.messages[project.chat.messages.length - 1];
     project.chat.messages.push(kind === "image"
-      ? { from: "me", type: "image", image: "@result", text: "", speak: false }
+      ? { from: "me", type: "image", image: project.format === "story" ? "@source" : "@result", text: "", speak: false }
+      : kind === "sticker"
+      ? { from: last?.from === "me" ? "them" : "me", type: "sticker", text: "😭", speak: false }
       : { from: kind, type: "text", text: "", speak: true });
     previewIndex = null;
     previewScene = "chat";
@@ -348,6 +387,7 @@ function bindEvents() {
   }));
 
   $("#stage").addEventListener("load", updatePreview);
+  $$("#formatPicker button").forEach(b => b.addEventListener("click", () => setFormat(b.dataset.format)));
 
   // Projets
   $("#projectSelect").addEventListener("change", async e => { await saveNow(); openProject(e.target.value); });
@@ -416,8 +456,10 @@ function bindEvents() {
     if (!prompt) return toast("Décris la photo à générer (ou l'idée).", true);
     await saveNow();
     await withBusy("Gemini génère la photo originale…", async () => {
-      project = await api("POST", `/api/projects/${project.id}/images/generate`, { prompt, name: "Photo originale", role: "source" });
-      previewScene = "app"; renderAll();
+      const story = project.format === "story";
+      project = await api("POST", `/api/projects/${project.id}/images/generate`,
+        { prompt, name: story ? "Photo d'accroche" : "Photo originale", role: "source" });
+      previewScene = story ? "hook" : "app"; renderAll();
     });
   });
 
@@ -532,7 +574,7 @@ async function uploadImage(file, role) {
   await withBusy("Import de l'image…", async () => {
     project = await api("POST", `/api/projects/${project.id}/images/upload?role=${role}`, fd, true);
     if (role === "result") previewScene = "hook";
-    if (role === "source") previewScene = "app";
+    if (role === "source") previewScene = project.format === "story" ? "hook" : "app";
     renderAll();
     toast(role === "result" ? "✨ Photo modifiée importée" : role === "source" ? "📷 Photo originale importée" : "Image importée");
   });

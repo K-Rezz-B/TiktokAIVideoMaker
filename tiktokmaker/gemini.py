@@ -155,6 +155,41 @@ Réponds UNIQUEMENT avec un objet JSON de cette forme :
 }}"""
 
 
+STORY_PROMPT = """Tu es scénariste de vidéos TikTok/Shorts françaises virales au format « histoire POV par SMS ».
+
+Le concept : une accroche « POV : … » s'affiche sur un selfie, puis on voit une conversation SMS (iMessage) entre « moi » et une autre personne (crush, copain/copine, ex, frère/sœur, mère, belle-mère, pote, inconnu…). Une voix lit chaque message. La vidéo dure environ 1 minute.
+
+Règles d'écriture :
+- "me" = moi, la personne qui vit la situation du POV. "them" = l'autre personne.
+- Le tout premier message doit lancer la situation immédiatement (pas de « salut ça va » inutile).
+- Rebondissements, réponses cash, malaise ou drama, et une chute forte à la fin (révélation, retournement, réplique culte).
+- 18 à 30 messages, chacun de 1 à 20 mots, comme de vrais SMS d'ados / jeunes adultes français (familier, abréviations légères, quelques émojis dans le texte).
+- Tu peux utiliser des messages de type "sticker" : 1 à 3 émojis envoyés seuls, affichés en grand (ex : "🤡", "😭😭", "👉👈"). Pas plus de 4 stickers.
+- hook_text : commence par « POV : » et décrit la situation en une phrase qui donne envie de rester (ex : « POV : t'as perdu à un défi, tu dois DM ton crush uniquement avec des photos 💀 »).
+- contact_name : le nom de l'autre personne tel qu'enregistré dans le téléphone, avec un émoji (ex : « Crush 🥰 », « Belle Mère », « Morgane ❤️ »).
+- photo_prompt : description EN ANGLAIS d'une photo d'ambiance pour l'accroche, en lien avec le POV (souvent un selfie miroir d'une jeune personne au visage caché par son téléphone, chambre ou couloir, lumière naturelle).
+- youtube_title : phrase de réaction courte + émoji + hashtags (#sms #message #histoire …).
+
+Idée de la vidéo : {idea}
+
+Réponds UNIQUEMENT avec un objet JSON de cette forme :
+{{
+  "title": "titre interne court",
+  "youtube_title": "…",
+  "hook_text": "POV : …",
+  "contact_name": "…",
+  "photo_prompt": "…",
+  "messages": [
+    {{"from": "them", "type": "text", "text": "…"}},
+    {{"from": "me", "type": "sticker", "text": "😭"}}
+  ]
+}}"""
+
+
+def story_prompt(idea: str) -> str:
+    return STORY_PROMPT.format(idea=idea.strip() or "(à toi de trouver une situation drôle ou choquante)")
+
+
 PHOTO_HINTS = {
     True: "La photo d'origine est jointe : base le scénario et edit_prompt sur ce qu'on voit dessus.",
     False: "Aucune photo fournie : invente une photo d'origine banale adaptée (photo_prompt).",
@@ -190,7 +225,10 @@ def parse_script(text: str) -> dict:
         who = "me" if lm.group(1).lower() in ("me", "moi") else "them"
         body = lm.group(2).strip().strip('"')
         img = re.fullmatch(r"\[?\s*(image|photo)\s*(result|source|modifiée|originale)?\s*\]?", body, re.I)
-        if img:
+        sticker = re.fullmatch(r"\[\s*sticker\s*:?\s*(.+?)\s*\]", body, re.I)
+        if sticker:
+            messages.append({"from": who, "type": "sticker", "text": sticker.group(1)})
+        elif img:
             kind = (img.group(2) or "result").lower()
             messages.append({"from": who, "type": "image", "image": "source" if kind in ("source", "originale") else "result"})
         else:
@@ -200,9 +238,12 @@ def parse_script(text: str) -> dict:
     return {"messages": messages}
 
 
-def write_script(idea: str, character: str, source_photo: Path = None) -> dict:
+def write_script(idea: str, character: str, source_photo: Path = None, fmt: str = "prank") -> dict:
     settings = load_settings()
-    prompt = script_prompt(idea, character, bool(source_photo))
+    if fmt == "story":
+        prompt, source_photo = story_prompt(idea), None
+    else:
+        prompt = script_prompt(idea, character, bool(source_photo))
     contents = []
     if source_photo:
         contents.append(types.Part.from_bytes(data=source_photo.read_bytes(), mime_type=_mime(source_photo)))

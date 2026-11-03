@@ -30,7 +30,9 @@ const linkify = s => s.replace(/https?:\/\/[^\s<]+/g, u => {
   const label = u.includes("youtube.com/shorts/") ? "▶ voir la vidéo" : u;
   return `<a href="${u}" target="_blank" rel="noopener">${label}</a>`;
 });
-const fmtDate =iso => iso ? new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "short" }) : "";
+const FORMATS = { prank: "⚡ Je fais croire", story: "💬 POV" };
+const fmtOf = i => (i.format === "story" ? "story" : "prank");
+const fmtDate = iso =>iso ? new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "short" }) : "";
 
 async function load() {
   ideas = await api("GET", "/api/ideas");
@@ -40,6 +42,7 @@ async function load() {
 function cardHTML(i) {
   if (editing === i.id) {
     return `<div class="idea editing" data-id="${i.id}">
+      <select data-f="format">${Object.entries(FORMATS).map(([k, v]) => `<option value="${k}" ${fmtOf(i) === k ? "selected" : ""}>${v}</option>`).join("")}</select>
       <textarea data-f="text" rows="2">${esc(i.text)}</textarea>
       <input data-f="character" value="${esc(i.character)}" placeholder="À qui ?" list="characters">
       <input data-f="notes" value="${esc(i.notes)}" placeholder="Notes">
@@ -60,6 +63,7 @@ function cardHTML(i) {
   return `<div class="idea" draggable="true" data-id="${i.id}">
     <div class="idea-text">${esc(i.text)}</div>
     <div class="idea-meta">
+      <span class="chip-fmt ${fmtOf(i)}">${FORMATS[fmtOf(i)]}</span>
       ${i.character ? `<span class="chip-who">${esc(i.character)}</span>` : ""}
       <span class="muted">${date}</span>
     </div>
@@ -74,13 +78,17 @@ function cardHTML(i) {
 
 function render() {
   const q = $("#search").value.trim().toLowerCase();
-  const visible = ideas.filter(i => !q || `${i.text} ${i.character} ${i.notes}`.toLowerCase().includes(q));
+  const fmt = $("#formatFilter").value;
+  const visible = ideas.filter(i => (!fmt || fmtOf(i) === fmt)
+    && (!q || `${i.text} ${i.character} ${i.notes}`.toLowerCase().includes(q)));
   for (const col of $$(".column")) {
     const status = col.dataset.status;
     let list = visible.filter(i => i.status === status);
+    // Tes idées d'abord (les plus récentes en haut), puis les idées reprises d'une chaîne, des plus vues aux moins vues
     list = status === "done"
       ? list.sort((a, b) => (b.done_at || "").localeCompare(a.done_at || ""))
-      : list.sort((a, b) => (b.created || "").localeCompare(a.created || ""));
+      : list.sort((a, b) => (a.views ? 1 : 0) - (b.views ? 1 : 0) || (b.views || 0) - (a.views || 0)
+          || (b.created || "").localeCompare(a.created || ""));
     col.querySelector(".count").textContent = list.length;
     col.querySelector(".list").innerHTML = list.map(cardHTML).join("")
       || `<p class="muted empty">${status === "todo" ? "Aucune idée en attente. Ajoute-en une ci-dessus !" : "Rien ici pour l'instant."}</p>`;
@@ -106,7 +114,8 @@ function bind() {
     try {
       await api("POST", "/api/ideas", data);
       e.target.reset();
-      e.target.elements.character.value = data.character; // on garde le même proche pour enchaîner
+      e.target.elements.character.value = data.character; // on garde le même proche et le même format pour enchaîner
+      e.target.elements.format.value = data.format;
       e.target.elements.text.focus();
       toast("💡 Idée ajoutée");
       await load();
@@ -117,7 +126,8 @@ function bind() {
     const bulk = $("#bulk").value;
     if (!bulk.trim()) return toast("Colle au moins une idée (une par ligne).", true);
     try {
-      const added = await api("POST", "/api/ideas", { bulk, character: $("#addForm").elements.character.value });
+      const form = $("#addForm").elements;
+      const added = await api("POST", "/api/ideas", { bulk, character: form.character.value, format: form.format.value });
       $("#bulk").value = "";
       toast(`💡 ${added.length} idées ajoutées`);
       await load();
@@ -125,7 +135,7 @@ function bind() {
   });
 
   $("#copySuggest").addEventListener("click", async () => {
-    const { prompt } = await api("GET", "/api/ideas/prompt");
+    const { prompt } = await api("GET", `/api/ideas/prompt?fmt=${$("#addForm").elements.format.value}`);
     try { await navigator.clipboard.writeText(prompt); }
     catch {
       const ta = Object.assign(document.createElement("textarea"), { value: prompt });
@@ -135,6 +145,7 @@ function bind() {
   });
 
   $("#search").addEventListener("input", render);
+  $("#formatFilter").addEventListener("change", render);
 
   document.addEventListener("click", async e => {
     const btn = e.target.closest("[data-act]");

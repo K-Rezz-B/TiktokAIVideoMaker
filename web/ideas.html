@@ -21,6 +21,12 @@
   <section class="card">
     <h2>➕ Nouvelle idée</h2>
     <form id="addForm" class="idea-form">
+      <label>Format
+        <select name="format">
+          <option value="prank">⚡ Je fais croire à…</option>
+          <option value="story">💬 Histoire POV</option>
+        </select>
+      </label>
       <label class="grow">L'idée<input name="text" required placeholder="ex : le jardinier a creusé une piscine olympique à la place du potager"></label>
       <label>À qui ?<input name="character" placeholder="mon père" list="characters"></label>
       <label class="grow">Notes (facultatif)<input name="notes" placeholder="photo à prendre : le potager de face"></label>
@@ -32,7 +38,7 @@
     </datalist>
     <details>
       <summary>Ajouter plusieurs idées d'un coup / m'en faire proposer par Gemini</summary>
-      <p class="hint">Une idée par ligne. Tu peux préciser à qui avec une barre : <code>l'ouvrier a peint la maison en rose | ma mère</code></p>
+      <p class="hint">Une idée par ligne, ajoutée dans le format choisi ci-dessus. Tu peux préciser à qui avec une barre : <code>l'ouvrier a peint la maison en rose | ma mère</code></p>
       <div class="actions">
         <button id="copySuggest" type="button">📋 Copier un prompt pour que Gemini me propose 10 idées</button>
         <a class="button" href="https://gemini.google.com/app" target="_blank" rel="noopener">↗ Ouvrir Gemini</a>
@@ -44,6 +50,11 @@
 
   <div class="filters">
     <input id="search" type="search" placeholder="🔎 Rechercher une idée…">
+    <select id="formatFilter">
+      <option value="">Tous les formats</option>
+      <option value="prank">⚡ Je fais croire à…</option>
+      <option value="story">💬 Histoire POV</option>
+    </select>
   </div>
 
   <section class="board">

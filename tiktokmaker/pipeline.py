@@ -68,20 +68,23 @@ class Builder:
         h = self.p["hook"]
         image = self.url(h.get("image") or projects.RESULT_REF)
         if not image:
-            raise RenderError("Choisis une image pour l'accroche (ou génère la photo modifiée).")
+            raise RenderError("Choisis une photo pour l'accroche (importe-la ou génère-la dans « Les photos »).")
         clip, d = self.speak(h["text"], "narrator") if h.get("speak", True) else (None, 0)
         total = max(2.2, d + 0.7) if clip else 2.5
         if clip:
             self.tl.voices.append((self.tl.t + 0.15, clip))
         n = round(total * FPS)
+        state = {"image": image, "text": h["text"], "style": h.get("style", "outline")}
+        if not h.get("zoom", True):
+            self.tl.hold({"scene": "hook", "hook": {**state, "zoom": 1}}, frames=n)
+            return
         for i in range(n):
-            zoom = round(1 + 0.07 * i / n, 4) if h.get("zoom", True) else 1
-            self.tl.hold({"scene": "hook", "hook": {"image": image, "text": h["text"], "zoom": zoom}}, frames=1)
+            self.tl.hold({"scene": "hook", "hook": {**state, "zoom": round(1 + 0.07 * i / n, 4)}}, frames=1)
 
     def ai_app(self):
         a = self.p["ai_app"]
         src = self.url(a.get("source_image", ""))
-        if not a.get("enabled", True) or not src:
+        if self.p.get("format") == "story" or not a.get("enabled", True) or not src:
             return
         res = self.url(a.get("result_image", ""))
         base = {"appName": a.get("app_name") or "Ora AI", "image": src, "resultImage": res, "mode": "prompt",
@@ -122,7 +125,9 @@ class Builder:
     def chat(self):
         c = self.p["chat"]
         base = {"contact": c.get("contact_name") or "Papa", "time": c.get("time") or "16:21",
-                "textSize": c.get("text_size") or 14}
+                "textSize": c.get("text_size") or 14, "style": c.get("style", "modern"),
+                "layout": c.get("layout", "scroll"), "carrier": c.get("carrier", "F SFR"),
+                "battery": c.get("battery", 76)}
         shown = []
 
         def st(**kw):
@@ -135,12 +140,13 @@ class Builder:
             raise RenderError("La conversation est vide : ajoute des messages.")
         for m in msgs:
             who = "me" if m.get("from") == "me" else "them"
-            is_img = m.get("type") == "image"
-            item = {"from": who, "type": "image" if is_img else "text"}
-            if is_img:
+            kind = m.get("type") if m.get("type") in ("image", "sticker") else "text"
+            is_img = kind != "text"  # image ou sticker : pas de voix, temps d'affichage fixe
+            item = {"from": who, "type": kind}
+            if kind == "image":
                 item["image"] = self.url(m.get("image") or projects.RESULT_REF)
                 if not item["image"]:
-                    raise RenderError("Un message image n'a pas d'image (génère la photo modifiée ou choisis-en une).")
+                    raise RenderError("Un message image n'a pas d'image (génère la photo ou choisis-en une).")
             else:
                 item["text"] = m["text"].strip()
 
@@ -166,7 +172,7 @@ class Builder:
             if clip:
                 hold = d + 0.25 * self.pace
             elif is_img:
-                hold = 1.6 * self.pace
+                hold = (1.6 if kind == "image" else 1.1) * self.pace
             else:
                 hold = (0.5 + 0.035 * len(item["text"])) * self.pace
             self.tl.hold(st(), max(0.25, hold - 5 / FPS))

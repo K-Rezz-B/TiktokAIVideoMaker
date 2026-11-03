@@ -26,14 +26,18 @@
 
     <div class="card">
       <h2>✨ 1. L'idée</h2>
+      <div class="formats" id="formatPicker">
+        <button type="button" data-format="prank"><b>⚡ Je fais croire à…</b><small>photo retouchée par IA + fausse appli + iMessage</small></button>
+        <button type="button" data-format="story"><b>💬 Histoire POV</b><small>« POV : … » sur un selfie + SMS sur un ancien iPhone</small></button>
+      </div>
       <label>Titre du projet<input data-path="title"></label>
       <label>Idée de la blague
         <textarea data-path="idea" rows="2" placeholder="ex : l'ouvrier a rallongé l'allée du jardin beaucoup trop loin et a mis des places de parking"></textarea>
       </label>
-      <label>À qui je fais la blague ?<input data-path="character" placeholder="mon père, ma mère, ma copine…"></label>
+      <label class="only-prank">À qui je fais la blague ?<input data-path="character" placeholder="mon père, ma mère, ma copine…"></label>
       <div class="steps">
         <div class="step">
-          <b>A.</b> Copie le prompt et colle-le dans Gemini (appli ou site). <strong>Joins ta photo originale</strong> dans Gemini si tu en as une : le script et la retouche colleront à ce qu'on voit dessus.
+          <b>A.</b> Copie le prompt et colle-le dans Gemini (appli ou site).<span class="only-prank"> <strong>Joins ta photo originale</strong> dans Gemini si tu en as une : le script et la retouche colleront à ce qu'on voit dessus.</span>
           <div class="actions">
             <button id="copyScriptPrompt" class="primary">📋 Copier le prompt du script</button>
             <a class="button" href="https://gemini.google.com/app" target="_blank" rel="noopener">↗ Ouvrir Gemini</a>
@@ -58,7 +62,7 @@
       <h2>🖼️ 2. Les photos</h2>
       <div class="photos">
         <div class="photo-slot">
-          <h3>📷 Photo originale</h3>
+          <h3><span class="only-prank">📷 Photo originale</span><span class="only-story">📷 Photo d'accroche (selfie, ambiance…)</span></h3>
           <div class="thumb" id="thumbSource" data-drop="source"></div>
           <button data-upload="source" class="primary">Importer ma photo</button>
           <label>Pas de photo ? Description pour la faire générer par Gemini
@@ -67,7 +71,7 @@
           <button id="copyPhotoPrompt">📋 Copier le prompt de la photo</button>
           <button id="genSource" class="api-only">🪄 Générer la photo (API)</button>
         </div>
-        <div class="photo-slot">
+        <div class="photo-slot only-prank">
           <h3>✨ Photo modifiée par l'IA</h3>
           <div class="thumb" id="thumbResult" data-drop="result"></div>
           <label>Consigne de retouche (remplie par le script, modifiable)
@@ -89,14 +93,22 @@
     <div class="card">
       <h2>🎣 3. L'accroche (début de vidéo)</h2>
       <label>Texte affiché<input data-path="hook.text" placeholder="Je fais croire à mon père que… 😨💀"></label>
-      <label>Image de fond<select data-path="hook.image" data-images></select></label>
+      <div class="row">
+        <label>Image de fond<select data-path="hook.image" data-images></select></label>
+        <label>Style du texte
+          <select data-path="hook.style">
+            <option value="outline">Blanc contouré (Je fais croire)</option>
+            <option value="box">Noir sur encadré blanc (POV)</option>
+          </select>
+        </label>
+      </div>
       <div class="row">
         <label class="check"><input type="checkbox" data-path="hook.speak"> Lire l'accroche à voix haute</label>
         <label class="check"><input type="checkbox" data-path="hook.zoom"> Zoom lent</label>
       </div>
     </div>
 
-    <div class="card">
+    <div class="card only-prank">
       <h2>📱 4. La fausse appli d'IA</h2>
       <label class="check"><input type="checkbox" data-path="ai_app.enabled"> Afficher la scène « je tape ma demande dans l'appli »</label>
       <div class="row">
@@ -113,11 +125,28 @@
         <label class="narrow">Heure<input data-path="chat.time"></label>
         <label class="narrow">Taille texte<input type="number" step="0.5" min="10" max="20" data-path="chat.text_size"></label>
       </div>
+      <div class="row">
+        <label>Téléphone
+          <select data-path="chat.style">
+            <option value="modern">iPhone récent (Dynamic Island)</option>
+            <option value="classic">Ancien iPhone (opérateur, batterie en %)</option>
+          </select>
+        </label>
+        <label>Affichage
+          <select data-path="chat.layout">
+            <option value="scroll">Défilement continu</option>
+            <option value="pages">Par pages (l'écran se vide quand il est plein)</option>
+          </select>
+        </label>
+        <label class="narrow classic-only">Opérateur<input data-path="chat.carrier"></label>
+        <label class="narrow classic-only">Batterie %<input type="number" min="1" max="100" data-path="chat.battery"></label>
+      </div>
       <label class="check"><input type="checkbox" data-path="chat.typing_indicator"> Bulle « … en train d'écrire » avant ses messages</label>
       <div id="messages" class="messages"></div>
       <div class="actions">
         <button data-add="them">＋ Son message</button>
         <button data-add="me">＋ Mon message</button>
+        <button data-add="sticker">＋ Sticker 😭</button>
         <button data-add="image">＋ Image</button>
       </div>
     </div>
@@ -164,8 +193,8 @@
   <aside class="side">
     <div class="preview-tabs" id="previewTabs">
       <button data-scene="hook">Accroche</button>
-      <button data-scene="app">Appli IA</button>
-      <button data-scene="gen">Génération</button>
+      <button data-scene="app" class="only-prank">Appli IA</button>
+      <button data-scene="gen" class="only-prank">Génération</button>
       <button data-scene="chat" class="on">Conversation</button>
     </div>
     <div class="phone"><iframe id="stage" src="/stage/stage.html" scrolling="no"></iframe></div>

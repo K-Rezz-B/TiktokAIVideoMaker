@@ -30,11 +30,26 @@ function statusBar(time, light) {
     <div class="sb-icons">${ICONS.signal(c)}${ICONS.wifi(c)}${ICONS.battery(c)}</div></div>`;
 }
 
+// Barre d'état d'ancien iPhone (opérateur à gauche, heure au centre, batterie en %)
+function classicStatusBar(c) {
+  const dots = "●●●●○";
+  const wifi = ICONS.wifi("#000").replace('width="15" height="11"', 'width="12" height="9"');
+  return `<div class="statusbar classic">
+    <span class="sb-left">${dots} ${esc(c.carrier ?? "F SFR")} ${wifi}</span>
+    <span class="sb-center">${esc(c.time || "00:00")}</span>
+    <span class="sb-right">${esc(c.battery ?? 76)} % ${ICONS.battery("#000").replace('width="26" height="12"', 'width="22" height="10"')}</span>
+  </div>`;
+}
+
 /* ------------------------------ Accroche ------------------------------ */
 function hookHTML(h) {
+  // "outline" : texte blanc contouré (format Je fais croire) ; "box" : texte noir encadré de blanc (format POV)
+  const text = !h.text ? "" : h.style === "box"
+    ? `<div class="hook-box"><span>${esc(h.text)}</span></div>`
+    : `<div class="hook-text">${esc(h.text)}</div>`;
   return `<div class="hook">
     ${h.image ? `<img src="${esc(h.image)}" style="transform:scale(${h.zoom || 1})">` : ""}
-    ${h.text ? `<div class="hook-text">${esc(h.text)}</div>` : ""}
+    ${text}
   </div>`;
 }
 
@@ -51,14 +66,16 @@ function chatHTML(c) {
     const tail = !next || next.from !== m.from;
     let inner;
     if (m.type === "image") inner = `<div class="photo"><img src="${esc(m.image)}"></div>`;
+    else if (m.type === "sticker") inner = `<div class="sticker">${esc(m.text)}</div>`;
     else if (m.type === "typing") {
       const p = c.phase || 0;
       inner = `<div class="bubble them typing tail">${[0, 1, 2].map(k => `<span class="${k === p ? "on" : ""}"></span>`).join("")}</div>`;
     } else inner = `<div class="bubble ${m.from} ${tail ? "tail" : ""}">${esc(m.text)}</div>`;
     rows.push(`<div class="row ${m.from} ${gap} ${isNew ? "new" : ""}">${inner}</div>`);
   });
-  return `<div class="chat" style="font-size:${c.textSize || 14}px">
-    ${statusBar(c.time)}
+  const classic = c.style === "classic";
+  return `<div class="chat ${classic ? "classic" : ""}" style="font-size:${c.textSize || 14}px">
+    ${classic ? classicStatusBar(c) : statusBar(c.time)}
     <div class="chat-header">
       <div class="chat-back">${ICONS.back("#1a87ff")}</div>
       <div class="contact"><div class="avatar">${ICONS.person}</div>
@@ -81,9 +98,24 @@ function measureTypingRow(scroll) {
   return typingRowHeight;
 }
 
+// Mode « pages » : quand l'écran est plein, on repart d'un écran vide à partir du message qui déborde
+function paginate(body, scroll) {
+  const rows = [...scroll.querySelectorAll(".row")];
+  const visible = body.clientHeight - 22;
+  let start = 0, used = 0;
+  rows.forEach((r, i) => {
+    const h = r.offsetHeight;
+    if (i > start && used + h > visible) { start = i; used = 0; }
+    used += h;
+  });
+  rows.forEach((r, i) => { if (i < start) r.style.display = "none"; });
+  if (rows[start]) { rows[start].classList.remove("gap-small", "gap-big"); rows[start].classList.add("first"); }
+}
+
 function layoutChat(root, c) {
   const body = root.querySelector(".chat-body");
   const scroll = root.querySelector(".chat-scroll");
+  if (c.layout === "pages") paginate(body, scroll);
   const row = scroll.querySelector(".row.new");
   if (row) {
     const t = clamp01(c.anim ?? 1);

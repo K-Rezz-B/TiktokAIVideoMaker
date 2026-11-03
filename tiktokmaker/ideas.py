@@ -36,11 +36,16 @@ def list_all() -> list:
     return _read()
 
 
-def add(text: str, character: str = "", notes: str = "") -> dict:
+FORMATS = ("prank", "story")
+
+
+def add(text: str, character: str = "", notes: str = "", fmt: str = "prank", views: int = 0) -> dict:
     text = (text or "").strip()
     if not text:
         raise ValueError("L'idée est vide")
     idea = {"id": new_id("idea-"), "text": text, "character": (character or "").strip(), "notes": (notes or "").strip(),
+            "format": fmt if fmt in FORMATS else "prank",
+            "views": max(0, int(views or 0)),  # vues de la vidéo d'origine (idées reprises d'une chaîne)
             "status": "todo", "project_id": "", "created": _now(), "done_at": ""}
     with _lock:
         ideas = _read()
@@ -52,7 +57,7 @@ def add(text: str, character: str = "", notes: str = "") -> dict:
 LINE_PREFIX = re.compile(r"^\s*(?:[-*•]|\d+[.)])\s*")
 
 
-def add_many(block: str, default_character: str = "") -> list:
+def add_many(block: str, default_character: str = "", fmt: str = "prank") -> list:
     """Une idée par ligne. Format accepté : « idée » ou « idée | à qui »."""
     added = []
     for line in (block or "").splitlines():
@@ -60,7 +65,7 @@ def add_many(block: str, default_character: str = "") -> list:
         if len(line) < 4:
             continue
         text, _, character = line.partition("|")
-        added.append(add(text.strip(), character.strip() or default_character))
+        added.append(add(text.strip(), character.strip() or default_character, fmt=fmt))
     if not added:
         raise ValueError("Aucune idée trouvée : écris une idée par ligne.")
     return added
@@ -75,6 +80,10 @@ def update(idea_id: str, changes: dict) -> dict:
         for key in ("text", "character", "notes", "project_id"):
             if key in changes and changes[key] is not None:
                 idea[key] = str(changes[key]).strip()
+        if changes.get("format") in FORMATS:
+            idea["format"] = changes["format"]
+        if "views" in changes:
+            idea["views"] = max(0, int(changes["views"] or 0))
         status = changes.get("status")
         if status in STATUSES and status != idea["status"]:
             idea["status"] = status
@@ -116,9 +125,22 @@ Exemple :
 l'ouvrier a transformé la pelouse en parking de supermarché | mon père"""
 
 
-def suggest_prompt() -> str:
-    current = [i["text"] for i in _read()][-30:]
+SUGGEST_STORY_PROMPT = """Propose-moi 10 nouvelles idées de vidéos TikTok au format « histoire POV par SMS ».
+
+Le principe : une accroche « POV : … » s'affiche sur un selfie, puis on lit une fausse conversation SMS pleine de drama, de malaise ou d'humour, avec une chute à la fin.
+
+Les bonnes idées :
+- parlent de crush, couple, ex, tromperie, famille (frère, sœur, mère, belle-mère), potes, lycée, travail ;
+- tiennent en une phrase qui donne envie de connaître la fin ;
+- reposent sur un défi, un test, un quiproquo, une révélation ou une réaction choquante.
+{existing}
+Réponds UNIQUEMENT avec 10 lignes, une idée par ligne, sans numéro et sans « POV : », par exemple :
+t'as perdu à un défi, tu dois DM ton crush uniquement avec des photos"""
+
+
+def suggest_prompt(fmt: str = "prank") -> str:
+    current = [i["text"] for i in _read() if i.get("format", "prank") == fmt][-30:]
     existing = ""
     if current:
         existing = "\nÉvite ces idées que j'ai déjà :\n" + "\n".join(f"- {t}" for t in current) + "\n"
-    return SUGGEST_PROMPT.format(existing=existing)
+    return (SUGGEST_STORY_PROMPT if fmt == "story" else SUGGEST_PROMPT).format(existing=existing)

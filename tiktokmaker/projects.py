@@ -25,10 +25,11 @@ def default_project(title: str = "Nouvelle vidéo") -> dict:
         "id": new_id(),
         "title": title,
         "created": datetime.now().isoformat(timespec="seconds"),
+        "format": "prank",  # "prank" = Je fais croire à… ; "story" = histoire POV par SMS
         "idea": "",
         "character": "mon père",
         "youtube_title": "",
-        "hook": {"text": "", "image": RESULT_REF, "speak": True, "zoom": True},
+        "hook": {"text": "", "image": RESULT_REF, "speak": True, "zoom": True, "style": "outline"},
         "ai_app": {
             "enabled": True,
             "app_name": "Ora AI",
@@ -44,6 +45,10 @@ def default_project(title: str = "Nouvelle vidéo") -> dict:
             "time": "16:21",
             "typing_indicator": True,
             "text_size": 13.5,
+            "style": "modern",  # "modern" (Dynamic Island) / "classic" (ancien iPhone, opérateur)
+            "layout": "scroll",  # "scroll" (défilement) / "pages" (l'écran se vide quand il est plein)
+            "carrier": "F SFR",
+            "battery": 76,
             "messages": [],
         },
         "images": [],
@@ -58,6 +63,27 @@ def default_project(title: str = "Nouvelle vidéo") -> dict:
         "pace": 1.0,
         "output": "",
     }
+
+
+FORMAT_DEFAULTS = {
+    # Format récent : photo retouchée par IA + fausse appli + iMessage moderne
+    "prank": {"hook": {"style": "outline", "zoom": True, "image": RESULT_REF},
+              "chat": {"style": "modern", "layout": "scroll", "time": "16:21", "text_size": 13.5},
+              "ai_app": {"enabled": True}},
+    # Ancien format : selfie + « POV : … » encadré, puis SMS sur un ancien iPhone, par pages
+    "story": {"hook": {"style": "box", "zoom": False, "image": SOURCE_REF},
+              "chat": {"style": "classic", "layout": "pages", "time": "00:00", "text_size": 15.5},
+              "ai_app": {"enabled": False},
+              "voices": {"narrator": "fr-FR-DeniseNeural", "me": "fr-FR-DeniseNeural", "them": "fr-FR-HenriNeural"}},
+}
+
+
+def apply_format(project: dict, fmt: str) -> dict:
+    fmt = fmt if fmt in FORMAT_DEFAULTS else "prank"
+    project["format"] = fmt
+    for section, values in FORMAT_DEFAULTS[fmt].items():
+        project[section].update(values)
+    return project
 
 
 def project_dir(pid: str) -> Path:
@@ -94,8 +120,8 @@ def save(project: dict) -> dict:
     return project
 
 
-def create(title: str = "Nouvelle vidéo") -> dict:
-    return save(default_project(title))
+def create(title: str = "Nouvelle vidéo", fmt: str = "prank") -> dict:
+    return save(apply_format(default_project(title), fmt))
 
 
 def list_all() -> list:

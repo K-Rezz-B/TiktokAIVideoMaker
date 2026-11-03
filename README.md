@@ -7,6 +7,11 @@ Crée automatiquement des vidéos verticales (TikTok / Shorts / Reels) au format
 2. **Fausse appli d'IA** : on tape la demande au clavier, puis la génération se lance (barre de progression)
 3. **Fausse conversation iMessage** : les messages arrivent un par un (bulle « en train d'écrire », bruitages, voix off pour chaque message)
 
+Un second format, **💬 Histoire POV** (l'ancien format de la chaîne), est aussi disponible :
+un selfie avec l'accroche « POV : … » encadrée de blanc, puis une conversation SMS sur un ancien iPhone
+(opérateur, batterie en %), affichée par pages, avec des émojis envoyés en grand comme stickers.
+Le format se choisit en haut de l'étape « 1. L'idée ».
+
 L'outil prépare les prompts pour Gemini (script + retouche photo, utilisable gratuitement par copier-coller), puis fait tout le reste tout seul : voix (Edge TTS ou ElevenLabs), écrans et montage (MP4 1080×1920, 30 i/s).
 
 ## Installation et lancement
@@ -42,6 +47,7 @@ Gemini s'utilise depuis son appli ou [gemini.google.com](https://gemini.google.c
 
 L'onglet **💡 Idées** (en haut de l'outil) sert à suivre tes idées de vidéos en 3 colonnes : **À faire**, **En cours**, **Réalisées**.
 
+- Chaque idée a un format (⚡ Je fais croire à… ou 💬 Histoire POV) ; un filtre permet de n'afficher qu'un format.
 - Ajoute une idée (et à qui tu fais la blague) avec le formulaire, ou colle-en plusieurs d'un coup, une par ligne : `l'ouvrier a peint la maison en rose | ma mère`.
 - Pas d'inspiration ? « 📋 Copier un prompt pour que Gemini me propose 10 idées » : colle-le dans Gemini, puis recolle sa réponse dans le même cadre.
 - **🎬 Créer la vidéo** crée le projet avec l'idée déjà remplie et ouvre l'éditeur. L'idée passe en « En cours », puis en « Réalisée » automatiquement dès que sa vidéo est générée.
