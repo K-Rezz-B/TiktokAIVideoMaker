@@ -53,7 +53,8 @@ L'onglet **💡 Idées** (en haut de l'outil) sert à suivre tes idées de vidé
 - **🎬 Créer la vidéo** crée le projet avec l'idée déjà remplie et ouvre l'éditeur. L'idée passe en « En cours », puis en « Réalisée » automatiquement dès que sa vidéo est générée.
 - Tu peux aussi glisser une carte d'une colonne à l'autre.
 
-Les idées sont enregistrées dans `projects/ideas.json` : copie le dossier `projects/` pour les retrouver sur un autre PC.
+Les idées sont enregistrées dans `projects/ideas.json`, qui est suivi par git (contrairement aux vidéos et images) :
+committe et pousse après avoir modifié tes idées, puis `git pull` sur l'autre PC pour les retrouver.
 
 ## Utilisation avec une clé API (facultatif)
 

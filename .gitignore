@@ -1,5 +1,6 @@
 .venv/
 __pycache__/
 settings.json
-projects/
+projects/*
+!projects/ideas.json
 .claude/
