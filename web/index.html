@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TiktokMaker</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">🎬 TiktokMaker</div>
+  <select id="projectSelect" title="Projet"></select>
+  <button id="newProject" class="ghost">＋ Nouveau</button>
+  <button id="deleteProject" class="ghost danger" title="Supprimer ce projet">🗑</button>
+  <div class="spacer"></div>
+  <span id="saveState" class="muted"></span>
+  <button id="openSettings" class="ghost">⚙️ Réglages</button>
+</header>
+
+<main>
+  <section class="editor" id="editor">
+
+    <div class="card">
+      <h2>✨ 1. L'idée</h2>
+      <label>Titre du projet<input data-path="title"></label>
+      <label>Idée de la blague
+        <textarea data-path="idea" rows="2" placeholder="ex : l'ouvrier a rallongé l'allée du jardin beaucoup trop loin et a mis des places de parking"></textarea>
+      </label>
+      <label>À qui je fais la blague ?<input data-path="character" placeholder="mon père, ma mère, ma copine…"></label>
+      <div class="steps">
+        <div class="step">
+          <b>A.</b> Copie le prompt et colle-le dans Gemini (appli ou site). <strong>Joins ta photo originale</strong> dans Gemini si tu en as une : le script et la retouche colleront à ce qu'on voit dessus.
+          <div class="actions">
+            <button id="copyScriptPrompt" class="primary">📋 Copier le prompt du script</button>
+            <a class="button" href="https://gemini.google.com/app" target="_blank" rel="noopener">↗ Ouvrir Gemini</a>
+          </div>
+        </div>
+        <div class="step">
+          <b>B.</b> Colle ici <strong>toute</strong> la réponse de Gemini, puis importe-la.
+          <textarea id="scriptPaste" rows="4" placeholder='{ "title": "…", "hook_text": "Je fais croire à mon père que…", "messages": [ … ] }'></textarea>
+          <div class="actions"><button id="importScript" class="primary">📥 Importer le script</button></div>
+        </div>
+      </div>
+      <div class="api-only">
+        <p class="hint">Avec ta clé API Gemini, tout peut se faire en un clic :</p>
+        <div class="actions">
+          <button id="autoAll" class="primary">⚡ Tout générer (script + images + vidéo)</button>
+          <button id="genScript">📝 Générer seulement le script</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>🖼️ 2. Les photos</h2>
+      <div class="photos">
+        <div class="photo-slot">
+          <h3>📷 Photo originale</h3>
+          <div class="thumb" id="thumbSource" data-drop="source"></div>
+          <button data-upload="source" class="primary">Importer ma photo</button>
+          <label>Pas de photo ? Description pour la faire générer par Gemini
+            <textarea data-path="ai_app.photo_prompt" rows="2" placeholder="a suburban French house with a small gravel driveway and a lawn"></textarea>
+          </label>
+          <button id="copyPhotoPrompt">📋 Copier le prompt de la photo</button>
+          <button id="genSource" class="api-only">🪄 Générer la photo (API)</button>
+        </div>
+        <div class="photo-slot">
+          <h3>✨ Photo modifiée par l'IA</h3>
+          <div class="thumb" id="thumbResult" data-drop="result"></div>
+          <label>Consigne de retouche (remplie par le script, modifiable)
+            <textarea data-path="ai_app.edit_prompt" rows="3" placeholder="Replace the whole lawn with a huge asphalt parking lot with white parking lines…"></textarea>
+          </label>
+          <button id="copyEditPrompt" class="primary">📋 Copier la consigne de retouche</button>
+          <p class="hint">Dans Gemini : joins la photo originale, colle la consigne, télécharge l'image obtenue puis glisse-la dans le cadre ci-dessus (ou <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>V</kbd> si tu l'as copiée).</p>
+          <button data-upload="result">Importer l'image modifiée</button>
+          <button id="genResult" class="api-only">🪄 Modifier la photo (API)</button>
+        </div>
+      </div>
+      <details>
+        <summary>Toutes les images du projet</summary>
+        <div id="gallery" class="gallery"></div>
+        <button data-upload="">＋ Importer une autre image</button>
+      </details>
+    </div>
+
+    <div class="card">
+      <h2>🎣 3. L'accroche (début de vidéo)</h2>
+      <label>Texte affiché<input data-path="hook.text" placeholder="Je fais croire à mon père que… 😨💀"></label>
+      <label>Image de fond<select data-path="hook.image" data-images></select></label>
+      <div class="row">
+        <label class="check"><input type="checkbox" data-path="hook.speak"> Lire l'accroche à voix haute</label>
+        <label class="check"><input type="checkbox" data-path="hook.zoom"> Zoom lent</label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>📱 4. La fausse appli d'IA</h2>
+      <label class="check"><input type="checkbox" data-path="ai_app.enabled"> Afficher la scène « je tape ma demande dans l'appli »</label>
+      <div class="row">
+        <label>Nom de l'appli<input data-path="ai_app.app_name"></label>
+        <label>Texte tapé<input data-path="ai_app.prompt_text" placeholder="transforme l'allée"></label>
+      </div>
+      <label class="check"><input type="checkbox" data-path="ai_app.show_result"> Montrer le résultat dans l'appli (sinon la surprise arrive dans la conversation)</label>
+    </div>
+
+    <div class="card">
+      <h2>💬 5. La conversation</h2>
+      <div class="row">
+        <label>Nom du contact<input data-path="chat.contact_name"></label>
+        <label class="narrow">Heure<input data-path="chat.time"></label>
+        <label class="narrow">Taille texte<input type="number" step="0.5" min="10" max="20" data-path="chat.text_size"></label>
+      </div>
+      <label class="check"><input type="checkbox" data-path="chat.typing_indicator"> Bulle « … en train d'écrire » avant ses messages</label>
+      <div id="messages" class="messages"></div>
+      <div class="actions">
+        <button data-add="them">＋ Son message</button>
+        <button data-add="me">＋ Mon message</button>
+        <button data-add="image">＋ Image</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>🎙️ 6. Voix & son</h2>
+      <div class="row">
+        <label>Moteur de voix
+          <select data-path="voices.provider">
+            <option value="edge">Edge TTS (gratuit)</option>
+            <option value="elevenlabs">ElevenLabs (clé API)</option>
+          </select>
+        </label>
+        <label class="check"><input type="checkbox" id="allLocales"> Toutes les langues</label>
+      </div>
+      <div class="voice-grid">
+        <label>Voix de l'accroche<select data-path="voices.narrator" data-voices></select></label>
+        <button class="ghost" data-test="narrator">▶</button>
+        <label>Ma voix (moi)<select data-path="voices.me" data-voices></select></label>
+        <button class="ghost" data-test="me">▶</button>
+        <label>Sa voix (lui / elle)<select data-path="voices.them" data-voices></select></label>
+        <button class="ghost" data-test="them">▶</button>
+      </div>
+      <div class="row">
+        <label>Vitesse de la voix <span class="val" data-show="voices.rate"></span>
+          <input type="range" min="-30" max="50" step="5" data-path="voices.rate"></label>
+        <label>Rythme des messages <span class="val" data-show="pace"></span>
+          <input type="range" min="0.6" max="1.6" step="0.1" data-path="pace"></label>
+      </div>
+      <div class="row">
+        <div>
+          <div class="label">Musique de fond</div>
+          <div id="musicName" class="muted">Aucune</div>
+          <button data-upload-music>Choisir un fichier audio</button>
+          <button id="removeMusic" class="ghost">Retirer</button>
+        </div>
+        <label>Volume musique <span class="val" data-show="audio.music_volume"></span>
+          <input type="range" min="0" max="0.5" step="0.02" data-path="audio.music_volume"></label>
+      </div>
+      <label class="check"><input type="checkbox" data-path="audio.sfx"> Bruitages (envoi / réception / clavier)</label>
+    </div>
+  </section>
+
+  <aside class="side">
+    <div class="preview-tabs" id="previewTabs">
+      <button data-scene="hook">Accroche</button>
+      <button data-scene="app">Appli IA</button>
+      <button data-scene="gen">Génération</button>
+      <button data-scene="chat" class="on">Conversation</button>
+    </div>
+    <div class="phone"><iframe id="stage" src="/stage/stage.html" scrolling="no"></iframe></div>
+    <button id="render" class="primary big">🎬 Générer la vidéo</button>
+    <div id="job" class="job hidden">
+      <div class="bar"><div id="jobFill"></div></div>
+      <div id="jobMsg" class="muted"></div>
+    </div>
+    <div id="result" class="result hidden">
+      <video id="video" controls playsinline></video>
+      <a id="download" class="button primary" download>⬇️ Télécharger le MP4</a>
+    </div>
+    <div class="card small">
+      <div class="label">Titre YouTube / TikTok</div>
+      <div class="row"><input data-path="youtube_title"><button id="copyTitle" class="ghost">Copier</button></div>
+    </div>
+  </aside>
+</main>
+
+<dialog id="settings">
+  <form method="dialog">
+    <h2>⚙️ Réglages</h2>
+    <p class="hint">Facultatif : sans clé, tu utilises Gemini gratuitement par copier-coller. Avec une clé, les boutons « API » font tout automatiquement.</p>
+    <label>Clé API Gemini <a href="https://aistudio.google.com/apikey" target="_blank">(obtenir une clé)</a>
+      <input name="gemini_api_key" autocomplete="off" placeholder="AIza…"></label>
+    <label>Modèle Gemini pour les images<input name="gemini_image_model" list="modelList"></label>
+    <label>Modèle Gemini pour le script<input name="gemini_text_model" list="modelList"></label>
+    <datalist id="modelList"></datalist>
+    <button type="button" id="loadModels" class="ghost">Charger la liste des modèles disponibles</button>
+    <label>Clé API ElevenLabs (facultatif)<input name="elevenlabs_api_key" autocomplete="off"></label>
+    <div class="actions">
+      <button value="cancel" class="ghost">Annuler</button>
+      <button id="saveSettings" value="save" class="primary">Enregistrer</button>
+    </div>
+  </form>
+</dialog>
+
+<input type="file" id="fileInput" accept="image/png,image/jpeg,image/webp" hidden>
+<input type="file" id="musicInput" accept="audio/*" hidden>
+<div id="toast" class="toast hidden"></div>
+<script src="app.js"></script>
+</body>
+</html>

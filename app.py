@@ -1,0 +1,397 @@
+"""TiktokMaker — serveur local. Lancer : python app.py (ou start_windows.bat / start_mac.command)."""
+import os
+import socket
+import threading
+import traceback
+import uuid
+import webbrowser
+from pathlib import Path
+
+import uvicorn
+from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
+
+from tiktokmaker import gemini, pipeline, projects, tts
+from tiktokmaker.config import PROJECTS_DIR, STAGE_DIR, WEB_DIR, load_settings, save_settings
+
+HOST = "127.0.0.1"
+PORT = 8765
+
+app = FastAPI(title="TiktokMaker")
+PROJECTS_DIR.mkdir(exist_ok=True)
+app.mount("/web", StaticFiles(directory=WEB_DIR), name="web")
+app.mount("/stage", StaticFiles(directory=STAGE_DIR), name="stage")
+app.mount("/files", StaticFiles(directory=PROJECTS_DIR), name="files")
+
+JOBS: dict = {}
+RENDER_LOCK = threading.Lock()
+
+
+def base_url() -> str:
+    return f"http://{HOST}:{PORT}"
+
+
+def _load(pid: str) -> dict:
+    try:
+        return projects.load(pid)
+    except (FileNotFoundError, ValueError) as exc:
+        raise HTTPException(404, str(exc))
+
+
+def _fail(exc: Exception):
+    raise HTTPException(400, str(exc))
+
+
+@app.get("/")
+def index():
+    return RedirectResponse("/web/index.html")
+
+
+# ------------------------------- Réglages -------------------------------
+def _mask(v: str) -> str:
+    return f"••••{v[-4:]}" if v else ""
+
+
+@app.get("/api/settings")
+def get_settings():
+    s = load_settings()
+    return {**s, "gemini_api_key": _mask(s["gemini_api_key"]), "elevenlabs_api_key": _mask(s["elevenlabs_api_key"])}
+
+
+@app.put("/api/settings")
+def put_settings(values: dict):
+    # Les champs masqués non modifiés ne sont pas réécrits
+    clean = {k: v for k, v in values.items() if not (isinstance(v, str) and v.startswith("••••"))}
+    save_settings(clean)
+    return get_settings()
+
+
+@app.get("/api/models")
+def get_models():
+    try:
+        return gemini.list_models()
+    except Exception as exc:
+        _fail(exc)
+
+
+@app.get("/api/voices")
+def get_voices(provider: str = "edge"):
+    try:
+        return tts.list_voices(provider)
+    except Exception as exc:
+        _fail(exc)
+
+
+class TTSPreview(BaseModel):
+    text: str
+    voice: str
+    provider: str = "edge"
+    rate: int = 0
+
+
+@app.post("/api/tts/preview")
+def tts_preview(body: TTSPreview):
+    try:
+        path = tts.synthesize(body.text, body.voice, PROJECTS_DIR / "_tts_preview", body.provider, body.rate)
+    except Exception as exc:
+        _fail(exc)
+    if not path:
+        raise HTTPException(400, "Texte vide")
+    return FileResponse(path, media_type="audio/mpeg")
+
+
+# ------------------------------- Projets --------------------------------
+@app.get("/api/projects")
+def list_projects():
+    return projects.list_all()
+
+
+@app.post("/api/projects")
+def create_project():
+    return projects.create()
+
+
+@app.get("/api/projects/{pid}")
+def get_project(pid: str):
+    return _load(pid)
+
+
+@app.put("/api/projects/{pid}")
+def put_project(pid: str, data: dict):
+    current = _load(pid)
+    data["id"] = pid
+    data["images"] = current["images"]  # gérées par les routes dédiées
+    data["output"] = current.get("output", "")
+    return projects.save(data)
+
+
+@app.delete("/api/projects/{pid}")
+def delete_project(pid: str):
+    _load(pid)
+    projects.delete(pid)
+    return {"ok": True}
+
+
+# ------------------------------- Images ---------------------------------
+EXT_BY_MIME = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
+
+
+@app.post("/api/projects/{pid}/images/upload")
+async def upload_image(pid: str, file: UploadFile = File(...), role: str = ""):
+    p = _load(pid)
+    ext = Path(file.filename or "").suffix.lower()
+    if ext not in (".jpg", ".jpeg", ".png", ".webp"):
+        raise HTTPException(400, "Format accepté : JPG, PNG ou WEBP")
+    img = projects.add_image(p, await file.read(), Path(file.filename).stem[:40] or "Photo", "upload", ext=ext)
+    _assign_role(p, img, role)
+    return projects.save(p)
+
+
+def _assign_role(p: dict, img: dict, role: str):
+    if role == "source":
+        p["ai_app"]["source_image"] = img["id"]
+    elif role == "result":
+        p["ai_app"]["result_image"] = img["id"]
+
+
+class ImageRequest(BaseModel):
+    prompt: str
+    name: str = ""
+    source: str = ""  # vide = création, sinon retouche de cette image
+    role: str = ""  # "source" / "result" : assigne l'image à la scène IA
+
+
+@app.post("/api/projects/{pid}/images/generate")
+def generate_image(pid: str, body: ImageRequest):
+    p = _load(pid)
+    try:
+        if body.source:
+            src = projects.image_path(p, body.source)
+            if not src:
+                raise ValueError("Image source introuvable")
+            data, mime = gemini.edit_photo(src, body.prompt)
+            origin = "edited"
+        else:
+            data, mime = gemini.create_photo(body.prompt)
+            origin = "generated"
+    except Exception as exc:
+        _fail(exc)
+    p = _load(pid)  # recharge : l'utilisateur a pu modifier pendant la génération
+    name = body.name or ("Photo modifiée" if body.source else "Photo générée")
+    img = projects.add_image(p, data, name, origin, body.prompt, ext=EXT_BY_MIME.get(mime, ".png"))
+    _assign_role(p, img, body.role)
+    return projects.save(p)
+
+
+@app.delete("/api/projects/{pid}/images/{img_id}")
+def delete_image(pid: str, img_id: str):
+    p = _load(pid)
+    img = next((i for i in p["images"] if i["id"] == img_id), None)
+    if img:
+        (projects.project_dir(pid) / "images" / img["file"]).unlink(missing_ok=True)
+        p["images"].remove(img)
+        for key in ("source_image", "result_image"):
+            if p["ai_app"].get(key) == img_id:
+                p["ai_app"][key] = ""
+    return projects.save(p)
+
+
+# ------------------------------- Musique --------------------------------
+@app.post("/api/projects/{pid}/music")
+async def upload_music(pid: str, file: UploadFile = File(...)):
+    p = _load(pid)
+    ext = Path(file.filename or "").suffix.lower()
+    if ext not in (".mp3", ".wav", ".m4a", ".aac", ".ogg"):
+        raise HTTPException(400, "Format accepté : MP3, WAV, M4A, AAC ou OGG")
+    d = projects.project_dir(pid)
+    if p["audio"].get("music"):
+        (d / p["audio"]["music"]).unlink(missing_ok=True)
+    name = f"music{ext}"
+    (d / name).write_bytes(await file.read())
+    p["audio"]["music"] = name
+    p["audio"]["music_name"] = file.filename
+    return projects.save(p)
+
+
+@app.delete("/api/projects/{pid}/music")
+def delete_music(pid: str):
+    p = _load(pid)
+    if p["audio"].get("music"):
+        (projects.project_dir(pid) / p["audio"]["music"]).unlink(missing_ok=True)
+    p["audio"]["music"] = ""
+    p["audio"]["music_name"] = ""
+    return projects.save(p)
+
+
+# ------------------------------- Script ---------------------------------
+class ScriptRequest(BaseModel):
+    idea: str
+    character: str = "mon père"
+
+
+def apply_script(p: dict, s: dict) -> dict:
+    # Seuls les champs présents dans la réponse remplacent l'existant
+    for src, (section, key) in {
+        "title": (None, "title"), "youtube_title": (None, "youtube_title"), "hook_text": ("hook", "text"),
+        "contact_name": ("chat", "contact_name"), "app_prompt": ("ai_app", "prompt_text"),
+        "edit_prompt": ("ai_app", "edit_prompt"), "photo_prompt": ("ai_app", "photo_prompt"),
+    }.items():
+        value = str(s.get(src) or "").strip()
+        if value:
+            (p[section] if section else p)[key] = value
+    msgs = []
+    for m in s.get("messages", []):
+        who = "me" if m.get("from") == "me" else "them"
+        if m.get("type") == "image":
+            ref = projects.SOURCE_REF if m.get("image") == "source" else projects.RESULT_REF
+            msgs.append({"from": who, "type": "image", "image": ref, "text": "", "speak": False})
+        elif (m.get("text") or "").strip():
+            msgs.append({"from": who, "type": "text", "text": m["text"].strip(), "speak": True})
+    p["chat"]["messages"] = msgs
+    return p
+
+
+@app.post("/api/projects/{pid}/script")
+def write_script(pid: str, body: ScriptRequest):
+    p = _load(pid)
+    try:
+        s = gemini.write_script(body.idea, body.character, projects.image_path(p, projects.SOURCE_REF))
+    except Exception as exc:
+        _fail(exc)
+    p = _load(pid)
+    p["idea"], p["character"] = body.idea, body.character
+    return projects.save(apply_script(p, s))
+
+
+# ------------------ Mode manuel (Gemini gratuit, sans clé) ----------------
+@app.get("/api/projects/{pid}/prompts")
+def get_prompts(pid: str):
+    """Prompts prêts à coller dans l'appli ou le site Gemini."""
+    p = _load(pid)
+    a = p["ai_app"]
+    return {
+        "script": gemini.script_prompt(p.get("idea", ""), p.get("character", "")),
+        "edit": gemini.edit_prompt(a["edit_prompt"]) if a.get("edit_prompt") else "",
+        "photo": gemini.photo_prompt(a.get("photo_prompt") or p.get("idea", "")) if (a.get("photo_prompt") or p.get("idea")) else "",
+    }
+
+
+class ScriptImport(BaseModel):
+    text: str
+
+
+@app.post("/api/projects/{pid}/script/import")
+def import_script(pid: str, body: ScriptImport):
+    p = _load(pid)
+    try:
+        s = gemini.parse_script(body.text)
+    except Exception as exc:
+        _fail(exc)
+    return projects.save(apply_script(p, s))
+
+
+# --------------------------- Tâches de fond -----------------------------
+def start_job(kind: str, pid: str, fn) -> dict:
+    job = {"id": uuid.uuid4().hex[:10], "kind": kind, "project": pid, "status": "running",
+           "progress": 0, "message": "Démarrage…", "error": "", "result": None}
+    JOBS[job["id"]] = job
+
+    def progress(pct, msg):
+        job["progress"] = round(float(pct), 1)
+        job["message"] = msg
+
+    def run():
+        try:
+            job["result"] = fn(progress)
+            job["status"] = "done"
+            job["progress"] = 100
+        except Exception as exc:
+            traceback.print_exc()
+            job["status"] = "error"
+            job["error"] = str(exc)
+
+    threading.Thread(target=run, daemon=True).start()
+    return job
+
+
+def _render(pid: str, progress) -> dict:
+    with RENDER_LOCK:
+        p = projects.load(pid)
+        out = pipeline.render_video(p, base_url(), f"{base_url()}/stage/stage.html", progress)
+        p = projects.load(pid)
+        p["output"] = out.name
+        projects.save(p)
+        return {"video": f"/files/{pid}/{out.name}"}
+
+
+@app.post("/api/projects/{pid}/render")
+def render(pid: str):
+    _load(pid)
+    return start_job("render", pid, lambda progress: _render(pid, progress))
+
+
+class AutoRequest(BaseModel):
+    idea: str
+    character: str = "mon père"
+    render: bool = True
+
+
+@app.post("/api/projects/{pid}/auto")
+def auto(pid: str, body: AutoRequest):
+    """Tout en un : script -> photo d'origine (si absente) -> photo modifiée -> vidéo."""
+    _load(pid)
+
+    def run(progress):
+        p = projects.load(pid)
+        p["idea"], p["character"] = body.idea, body.character
+        progress(3, "Écriture du script avec Gemini…")
+        src = projects.image_path(p, projects.SOURCE_REF)
+        script = gemini.write_script(body.idea, body.character, src)
+        apply_script(p, script)
+        projects.save(p)
+        if not src:
+            progress(15, "Création de la photo d'origine…")
+            data, mime = gemini.create_photo(p["ai_app"]["photo_prompt"] or body.idea)
+            img = projects.add_image(p, data, "Photo originale", "generated", p["ai_app"]["photo_prompt"],
+                                     ext=EXT_BY_MIME.get(mime, ".png"))
+            p["ai_app"]["source_image"] = img["id"]
+            projects.save(p)
+            src = projects.image_path(p, projects.SOURCE_REF)
+        progress(30, "Retouche de la photo avec Gemini…")
+        data, mime = gemini.edit_photo(src, p["ai_app"]["edit_prompt"] or body.idea)
+        img = projects.add_image(p, data, "Photo modifiée", "edited", p["ai_app"]["edit_prompt"],
+                                 ext=EXT_BY_MIME.get(mime, ".png"))
+        p["ai_app"]["result_image"] = img["id"]
+        projects.save(p)
+        if not body.render:
+            return {"video": None}
+        return _render(pid, lambda pct, msg: progress(45 + pct * 0.55, msg))
+
+    return start_job("auto", pid, run)
+
+
+@app.get("/api/jobs/{job_id}")
+def get_job(job_id: str):
+    job = JOBS.get(job_id)
+    if not job:
+        raise HTTPException(404, "Tâche inconnue")
+    return job
+
+
+def _free_port(start: int) -> int:
+    for port in range(start, start + 50):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            if s.connect_ex((HOST, port)) != 0:
+                return port
+    return start
+
+
+if __name__ == "__main__":
+    PORT = _free_port(PORT)
+    url = f"{base_url()}/"
+    print(f"\n  TiktokMaker est lancé : {url}\n  (ferme cette fenêtre pour l'arrêter)\n")
+    if not os.environ.get("TIKTOKMAKER_NO_BROWSER"):
+        threading.Timer(1.2, lambda: webbrowser.open(url)).start()
+    uvicorn.run(app, host=HOST, port=PORT, log_level="warning")

@@ -1,0 +1,140 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 360px; height: 640px; overflow: hidden; background: #000; }
+body {
+  font-family: -apple-system, "SF Pro Text", "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  color: #000;
+}
+#stage { position: relative; width: 360px; height: 640px; overflow: hidden; background: #fff; }
+.emoji { font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; }
+
+/* ---------- Barre d'état iPhone ---------- */
+.statusbar { position: absolute; top: 0; left: 0; right: 0; height: 42px; z-index: 20; color: #000; }
+.statusbar.light { color: #fff; }
+.sb-time { position: absolute; left: 34px; top: 14px; font-size: 14.5px; font-weight: 600; letter-spacing: -0.2px; }
+.island { position: absolute; left: 50%; top: 9px; width: 104px; height: 30px; margin-left: -52px; background: #000; border-radius: 20px; }
+.sb-icons { position: absolute; right: 22px; top: 16px; display: flex; gap: 5px; align-items: center; }
+.sb-icons svg { display: block; }
+
+/* ---------- Accroche ---------- */
+.hook { position: absolute; inset: 0; background: #000; overflow: hidden; }
+.hook img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform-origin: 50% 55%; }
+.hook-text {
+  position: absolute; left: 50%; top: 23%; transform: translateX(-50%);
+  width: 68%; text-align: center;
+  font-family: "Inter", -apple-system, "Segoe UI", Arial, sans-serif;
+  font-size: 16.5px; line-height: 1.25; font-weight: 700; color: #fff; letter-spacing: 0;
+  -webkit-text-stroke: 2.4px #000; paint-order: stroke fill;
+  text-shadow: 0 1px 3px rgba(0,0,0,.35);
+}
+
+/* ---------- iMessage ---------- */
+.chat { position: absolute; inset: 0; background: #fff; }
+.chat-header { position: absolute; top: 42px; left: 0; right: 0; height: 68px; background: rgba(249,249,249,.94);
+  border-bottom: 0.5px solid #d6d6d8; z-index: 10; }
+.chat-back { position: absolute; left: 12px; top: 16px; }
+.chat-facetime { position: absolute; right: 14px; top: 20px; }
+.contact { position: absolute; left: 50%; transform: translateX(-50%); top: 4px; display: flex; flex-direction: column; align-items: center; }
+.avatar { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(#a5abb8, #858b98); overflow: hidden; position: relative; }
+.avatar svg { position: absolute; left: 0; top: 0; }
+.cname { margin-top: 5px; font-size: 10px; color: #000; white-space: nowrap; display: flex; align-items: center; gap: 2px; }
+.cname .chev { color: #a0a0a5; font-size: 10px; margin-left: 1px; }
+.chat-body { position: absolute; top: 110px; left: 0; right: 0; bottom: 0; overflow: hidden; }
+.chat-scroll { position: absolute; top: 0; left: 0; right: 0; padding: 4px 0 18px; will-change: transform; }
+.row { display: flex; padding: 0 14px; }
+.row.me { justify-content: flex-end; }
+.row.them { justify-content: flex-start; }
+.row.gap-small { padding-top: 2px; }
+.row.gap-big { padding-top: 10px; }
+.row.first { padding-top: 8px; }
+.bubble { position: relative; max-width: 72%; padding: 7px 12px 7px; border-radius: 17px; line-height: 1.3;
+  word-wrap: break-word; white-space: pre-wrap; }
+.bubble.me { background: #1a87ff; color: #fff; }
+.bubble.them { background: #e9e9eb; color: #000; }
+/* queues de bulles façon iOS */
+.bubble.tail::before, .bubble.tail::after { content: ""; position: absolute; bottom: 0; height: 18px; }
+.bubble.me.tail::before { right: -7px; width: 20px; background: #1a87ff; border-bottom-left-radius: 16px 14px; }
+.bubble.me.tail::after { right: -26px; width: 26px; background: #fff; border-bottom-left-radius: 10px; }
+.bubble.them.tail::before { left: -7px; width: 20px; background: #e9e9eb; border-bottom-right-radius: 16px 14px; }
+.bubble.them.tail::after { left: -26px; width: 26px; background: #fff; border-bottom-right-radius: 10px; }
+.photo { max-width: 62%; border-radius: 17px; overflow: hidden; line-height: 0; background: #eee; }
+.photo img { display: block; width: 100%; max-height: 300px; object-fit: cover; }
+.bubble.typing { padding: 11px 13px; display: flex; gap: 4px; align-items: center; }
+.bubble.typing span { width: 7.5px; height: 7.5px; border-radius: 50%; background: #9a9aa0; opacity: .45; }
+.bubble.typing span.on { opacity: 1; background: #7d7d83; }
+.row.new > * { will-change: transform, opacity; }
+
+/* ---------- Appli d'IA ---------- */
+.app { position: absolute; inset: 0; background: #f2f2f6; font-family: "Inter", -apple-system, "Segoe UI", sans-serif; }
+.app-top { position: absolute; top: 44px; left: 0; right: 0; height: 44px; }
+.app-back { position: absolute; left: 14px; top: 4px; width: 34px; height: 34px; border-radius: 50%; background: #fff;
+  display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.app-pill { position: absolute; left: 50%; transform: translateX(-50%); top: 4px; height: 34px; padding: 0 14px 0 6px;
+  border-radius: 17px; background: #fff; display: flex; align-items: center; gap: 7px; font-weight: 700; font-size: 14px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.logo { width: 24px; height: 24px; border-radius: 50%; background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  display: flex; align-items: center; justify-content: center; }
+.app-card { position: absolute; left: 16px; right: 16px; top: 96px; border-radius: 24px; overflow: hidden; background: #ddd; }
+.app-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.app-panel { position: absolute; left: 10px; right: 10px; background: #fff; border-radius: 22px; padding: 10px 12px 12px;
+  box-shadow: 0 2px 10px rgba(0,0,0,.06); }
+.seg { display: flex; justify-content: center; gap: 4px; margin-bottom: 8px; }
+.seg span { font-size: 12px; font-weight: 600; padding: 6px 16px; border-radius: 14px; color: #555; display: flex; gap: 5px; align-items: center; }
+.seg span.on { background: #111; color: #fff; }
+.prompt { background: #f4f4f7; border-radius: 12px; padding: 10px 12px; font-size: 13.5px; min-height: 38px; color: #111; }
+.prompt .ph { color: #9b9ba3; }
+.caret { display: inline-block; width: 1.6px; height: 16px; background: #7c3aed; vertical-align: -3px; margin-left: 1px; }
+.panel-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.chip { font-size: 11.5px; font-weight: 600; padding: 6px 10px; border-radius: 13px; display: flex; gap: 4px; align-items: center; }
+.chip.auto { border: 1.3px dashed #b9b9c2; color: #444; }
+.chip.pro { background: #efe9ff; color: #6d28d9; }
+.send { margin-left: auto; width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+  display: flex; align-items: center; justify-content: center; box-shadow: 0 3px 10px rgba(124,58,237,.35); }
+.send.pressed { transform: scale(.88); filter: brightness(.85); }
+
+.gen-card { position: absolute; left: 16px; right: 16px; top: 96px; bottom: 112px; border-radius: 26px; overflow: hidden; background: #1c1c22; }
+.gen-card .bg { position: absolute; inset: -40px; background-size: cover; background-position: center; filter: blur(22px) brightness(.45) saturate(1.2); }
+.gen-center { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; color: #fff; }
+.gen-logo { width: 46px; height: 46px; margin-bottom: 8px; }
+.gen-name { font-size: 34px; font-weight: 800; letter-spacing: -0.5px;
+  background: linear-gradient(90deg, #c4b5fd, #f0abfc 50%, #a5b4fc); -webkit-background-clip: text; color: transparent; }
+.gen-bar { margin-top: 22px; width: 200px; display: flex; align-items: center; gap: 10px; }
+.gen-track { flex: 1; height: 5px; border-radius: 3px; background: rgba(255,255,255,.25); overflow: hidden; }
+.gen-fill { height: 100%; border-radius: 3px; background: #fff; }
+.gen-label { margin-top: 8px; width: 200px; display: flex; justify-content: space-between; font-size: 11.5px; color: rgba(255,255,255,.85); }
+.gen-label b { font-size: 15px; color: #fff; }
+.gen-note { position: absolute; left: 16px; right: 16px; bottom: 34px; height: 64px; background: #fff; border-radius: 18px;
+  display: flex; align-items: center; gap: 10px; padding: 0 14px; box-shadow: 0 2px 10px rgba(0,0,0,.06); }
+.gen-note .ic { width: 36px; height: 36px; border-radius: 10px; background: #f1edff; display: flex; align-items: center; justify-content: center; flex: none; }
+.gen-note b { font-size: 12.5px; display: block; }
+.gen-note small { font-size: 10.5px; color: #77777f; line-height: 1.3; display: block; }
+.result-card img { transition: none; }
+.result-badge { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); background: rgba(0,0,0,.6); color: #fff;
+  font-size: 12px; font-weight: 600; padding: 7px 14px; border-radius: 16px; white-space: nowrap; }
+.result-actions { position: absolute; left: 16px; right: 16px; bottom: 34px; display: flex; gap: 10px; }
+.result-actions div { flex: 1; height: 46px; border-radius: 23px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; }
+.result-actions .save { background: linear-gradient(135deg, #8b5cf6, #6d28d9); color: #fff; }
+.result-actions .share { background: #fff; color: #111; }
+
+/* ---------- Clavier iOS AZERTY ---------- */
+.kb { position: absolute; left: 0; right: 0; bottom: 0; height: 262px; background: #d3d5db; padding-top: 2px; }
+.kb-sugg { height: 40px; display: flex; align-items: center; }
+.kb-sugg span { flex: 1; text-align: center; font-size: 14.5px; color: #111; position: relative; }
+.kb-sugg span + span::before { content: ""; position: absolute; left: 0; top: 2px; bottom: 2px; width: 1px; background: #b8bac0; }
+.kb-row { display: flex; justify-content: center; gap: 5.5px; padding: 0 3px; margin-bottom: 11px; }
+.key { position: relative; width: 30.5px; height: 41px; border-radius: 5px; background: #fff; box-shadow: 0 1px 0 #898a8d;
+  display: flex; align-items: center; justify-content: center; font-size: 21px; font-weight: 400; color: #000; }
+.key.dark { background: #abb0ba; }
+.key.wide { width: 41px; }
+.key.space { width: 172px; font-size: 14.5px; }
+.key.ret { width: 86px; font-size: 14.5px; }
+.key.num { width: 41px; font-size: 14.5px; }
+.key.pressed.letter { background: #fff; }
+.key.pressed.letter::after {
+  content: attr(data-l); position: absolute; left: 50%; bottom: 0; transform: translateX(-50%);
+  width: 46px; height: 92px; border-radius: 9px; background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,.25);
+  display: flex; justify-content: center; padding-top: 10px; font-size: 34px; z-index: 5;
+}
+.key.pressed:not(.letter) { background: #abb0ba; }
+.kb-bottom { position: absolute; left: 0; right: 0; bottom: 0; height: 36px; }
+.home-ind { position: absolute; left: 50%; bottom: 8px; width: 130px; height: 5px; margin-left: -65px; border-radius: 3px; background: #000; }
