@@ -452,6 +452,87 @@ def get_job(job_id: str):
     return job
 
 
+# ------------------------------- Série ----------------------------------
+@app.get("/api/series")
+def series_overview():
+    """Tous les projets avec leur état : prêt, à compléter (et pourquoi), vidéo déjà faite."""
+    out = []
+    for meta in projects.list_all():
+        try:
+            p = projects.load(meta["id"])
+        except (OSError, ValueError):
+            continue
+        video = p.get("output", "")
+        exists = bool(video) and (projects.project_dir(p["id"]) / video).exists()
+        out.append({
+            "id": p["id"], "title": p["title"], "format": p.get("format", "prank"), "created": p.get("created", ""),
+            "problems": pipeline.problems(p), "messages": len(p["chat"].get("messages", [])),
+            "video": f"/files/{p['id']}/{video}" if exists else "", "youtube_title": p.get("youtube_title", ""),
+            "hook_text": p["hook"].get("text", ""),
+        })
+    return out
+
+
+class SeriesRequest(BaseModel):
+    ids: list
+
+
+SERIES = {"job": None, "cancel": False}
+
+
+@app.post("/api/series/render")
+def series_render(body: SeriesRequest):
+    current = SERIES["job"]
+    if current and current["status"] == "running":
+        raise HTTPException(409, "Une série est déjà en cours.")
+    ids = [i for i in body.ids if isinstance(i, str)]
+    if not ids:
+        raise HTTPException(400, "Coche au moins un projet.")
+    items = []
+    for pid in ids:
+        p = _load(pid)
+        items.append({"id": pid, "title": p["title"], "status": "waiting", "progress": 0, "message": "En attente",
+                      "video": "", "error": ""})
+    SERIES["cancel"] = False
+
+    def run(progress):
+        for n, item in enumerate(items):
+            if SERIES["cancel"]:
+                item.update(status="cancelled", message="Annulée")
+                continue
+            item.update(status="running", message="Démarrage…")
+
+            def step(pct, msg, item=item, n=n):
+                item.update(progress=round(float(pct), 1), message=msg)
+                progress((n + pct / 100) / len(items) * 100, f"Vidéo {n + 1}/{len(items)} : {item['title']}")
+
+            try:
+                item["video"] = _render(item["id"], step)["video"]
+                item.update(status="done", progress=100, message="Vidéo prête")
+            except Exception as exc:
+                traceback.print_exc()
+                item.update(status="error", message="Échec", error=str(exc))
+        done = sum(i["status"] == "done" for i in items)
+        progress(100, f"Série terminée : {done}/{len(items)} vidéo(s)")
+        return {"done": done}
+
+    job = start_job("series", "", run)
+    job["items"] = items
+    SERIES["job"] = job
+    return job
+
+
+@app.get("/api/series/job")
+def series_job():
+    return SERIES["job"] or {}
+
+
+@app.post("/api/series/cancel")
+def series_cancel():
+    SERIES["cancel"] = True
+    return {"ok": True}
+
+
 def _free_port(start: int) -> int:
     for port in range(start, start + 50):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:

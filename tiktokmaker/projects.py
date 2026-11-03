@@ -69,7 +69,8 @@ FORMAT_DEFAULTS = {
     # Format récent : photo retouchée par IA + fausse appli + iMessage moderne
     "prank": {"hook": {"style": "outline", "zoom": True, "image": RESULT_REF},
               "chat": {"style": "modern", "layout": "scroll", "time": "16:21", "text_size": 13.5},
-              "ai_app": {"enabled": True}},
+              "ai_app": {"enabled": True},
+              "voices": {"narrator": "fr-FR-HenriNeural", "me": "fr-FR-HenriNeural", "them": "fr-FR-RemyMultilingualNeural"}},
     # Ancien format : selfie + « POV : … » encadré, puis SMS sur un ancien iPhone, par pages
     "story": {"hook": {"style": "box", "zoom": False, "image": SOURCE_REF},
               "chat": {"style": "classic", "layout": "pages", "time": "00:00", "text_size": 15.5},

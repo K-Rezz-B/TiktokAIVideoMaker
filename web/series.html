@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Série — TiktokMaker</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">🎬 TiktokMaker</div>
+  <nav class="nav">
+    <a href="index.html">✏️ Éditeur</a>
+    <a href="ideas.html">💡 Idées</a>
+    <a href="series.html" class="on">🎞️ Série</a>
+  </nav>
+  <div class="spacer"></div>
+  <span id="summary" class="muted"></span>
+</header>
+
+<div class="ideas-wrap">
+  <section class="card">
+    <h2>🎞️ Rendre plusieurs vidéos à la suite</h2>
+    <p class="hint">Prépare tes projets dans l'éditeur (script, photos), coche-les ici puis lance la série : les vidéos sont rendues l'une après l'autre (≈ 1 min 30 chacune), tu peux faire autre chose pendant ce temps.</p>
+    <div class="actions">
+      <button id="selectReady">✓ Cocher les projets prêts sans vidéo</button>
+      <button id="selectNone" class="ghost">Tout décocher</button>
+      <div class="spacer"></div>
+      <button id="cancel" class="ghost danger hidden">■ Arrêter après la vidéo en cours</button>
+      <button id="start" class="primary">▶ Lancer la série</button>
+    </div>
+    <div id="overall" class="job hidden">
+      <div class="bar"><div id="overallFill"></div></div>
+      <div id="overallMsg" class="muted"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>📁 Projets</h2>
+    <div class="series-filters">
+      <label class="check"><input type="checkbox" id="hideDone"> Masquer les projets qui ont déjà une vidéo</label>
+    </div>
+    <table class="series-table">
+      <thead><tr><th></th><th>Projet</th><th>État</th><th></th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </section>
+
+  <section class="card">
+    <h2>📤 Kit de publication</h2>
+    <p class="hint">Pour chaque vidéo : la légende à coller sur TikTok et Instagram, le titre pour YouTube Shorts (100 caractères max, avec #shorts), et le MP4 nommé proprement. Pense à cocher l'option « contenu généré par IA » à la publication.</p>
+    <div id="kits" class="kits"></div>
+  </section>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+<script src="series.js"></script>
+</body>
+</html>

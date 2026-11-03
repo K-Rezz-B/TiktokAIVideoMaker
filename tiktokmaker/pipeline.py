@@ -186,6 +186,21 @@ class Builder:
         return self.tl
 
 
+def problems(project: dict) -> list:
+    """Ce qui empêcherait le rendu, sans rien générer (pour la page Série)."""
+    issues = []
+    story = project.get("format") == "story"
+    hook_ref = project["hook"].get("image") or projects.RESULT_REF
+    if not projects.find_image(project, hook_ref):
+        issues.append("photo d'accroche manquante" if story or hook_ref == projects.SOURCE_REF else "photo modifiée manquante")
+    msgs = [m for m in project["chat"].get("messages", []) if (m.get("text") or "").strip() or m.get("type") == "image"]
+    if not msgs:
+        issues.append("pas de conversation")
+    if any(m.get("type") == "image" and not projects.find_image(project, m.get("image") or projects.RESULT_REF) for m in msgs):
+        issues.append("un message image n'a pas d'image")
+    return issues
+
+
 def render_video(project: dict, base_url: str, stage_url: str, progress=lambda pct, msg: None) -> Path:
     out_dir = projects.project_dir(project["id"])
     builder = Builder(project, base_url, log=lambda m: progress(5, m))

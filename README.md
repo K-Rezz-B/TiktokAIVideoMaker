@@ -56,6 +56,16 @@ L'onglet **💡 Idées** (en haut de l'outil) sert à suivre tes idées de vidé
 Les idées sont enregistrées dans `projects/ideas.json`, qui est suivi par git (contrairement aux vidéos et images) :
 committe et pousse après avoir modifié tes idées, puis `git pull` sur l'autre PC pour les retrouver.
 
+## 🎞️ Mode série (plusieurs vidéos d'un coup)
+
+L'onglet **🎞️ Série** liste tous tes projets avec leur état : ✅ prêt, ⚠️ à compléter (avec la raison) ou 🎬 vidéo déjà faite.
+
+1. Prépare plusieurs projets dans l'éditeur (script importé, photos).
+2. Dans **Série**, clique « Cocher les projets prêts sans vidéo » puis **▶ Lancer la série** : les vidéos sont rendues l'une après l'autre (≈ 1 min 30 chacune). Tu peux arrêter après la vidéo en cours.
+3. Le **kit de publication** donne, pour chaque vidéo, la légende TikTok / Instagram et le titre YouTube Shorts (100 caractères max, avec #shorts) à copier, et le MP4 à télécharger avec un nom propre.
+
+Astuce : prépare 10 à 15 projets le week-end, lance la série, puis programme les publications (YouTube Studio, TikTok sur ordinateur, Meta Business Suite pour Instagram).
+
 ## Utilisation avec une clé API (facultatif)
 
 Dans **⚙️ Réglages**, colle une clé API Gemini ([aistudio.google.com/apikey](https://aistudio.google.com/apikey)) :

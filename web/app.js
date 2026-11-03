@@ -119,7 +119,8 @@ function escapeHtml(s) {
 // Même réglages par défaut que FORMAT_DEFAULTS dans tiktokmaker/projects.py
 const FORMAT_DEFAULTS = {
   prank: { hook: { style: "outline", zoom: true, image: "@result" },
-           chat: { style: "modern", layout: "scroll", time: "16:21", text_size: 13.5 }, ai_app: { enabled: true } },
+           chat: { style: "modern", layout: "scroll", time: "16:21", text_size: 13.5 }, ai_app: { enabled: true },
+           voices: { narrator: "fr-FR-HenriNeural", me: "fr-FR-HenriNeural", them: "fr-FR-RemyMultilingualNeural" } },
   story: { hook: { style: "box", zoom: false, image: "@source" },
            chat: { style: "classic", layout: "pages", time: "00:00", text_size: 15.5 }, ai_app: { enabled: false },
            voices: { narrator: "fr-FR-DeniseNeural", me: "fr-FR-DeniseNeural", them: "fr-FR-HenriNeural" } },
