@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Idées — TiktokMaker</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="ideas-page">
+<header class="topbar">
+  <div class="brand">🎬 TiktokMaker</div>
+  <nav class="nav">
+    <a href="index.html">✏️ Éditeur</a>
+    <a href="ideas.html" class="on">💡 Idées</a>
+  </nav>
+  <div class="spacer"></div>
+  <span id="stats" class="muted"></span>
+</header>
+
+<div class="ideas-wrap">
+  <section class="card">
+    <h2>➕ Nouvelle idée</h2>
+    <form id="addForm" class="idea-form">
+      <label class="grow">L'idée<input name="text" required placeholder="ex : le jardinier a creusé une piscine olympique à la place du potager"></label>
+      <label>À qui ?<input name="character" placeholder="mon père" list="characters"></label>
+      <label class="grow">Notes (facultatif)<input name="notes" placeholder="photo à prendre : le potager de face"></label>
+      <button class="primary">Ajouter</button>
+    </form>
+    <datalist id="characters">
+      <option value="mon père"><option value="ma mère"><option value="ma copine"><option value="mon copain">
+      <option value="ma grand-mère"><option value="mon grand-père"><option value="mon coloc"><option value="mon frère"><option value="ma sœur">
+    </datalist>
+    <details>
+      <summary>Ajouter plusieurs idées d'un coup / m'en faire proposer par Gemini</summary>
+      <p class="hint">Une idée par ligne. Tu peux préciser à qui avec une barre : <code>l'ouvrier a peint la maison en rose | ma mère</code></p>
+      <div class="actions">
+        <button id="copySuggest" type="button">📋 Copier un prompt pour que Gemini me propose 10 idées</button>
+        <a class="button" href="https://gemini.google.com/app" target="_blank" rel="noopener">↗ Ouvrir Gemini</a>
+      </div>
+      <textarea id="bulk" rows="5" placeholder="l'ouvrier a transformé la pelouse en parking | mon père&#10;le chat a été rasé en lion | ma copine"></textarea>
+      <div class="actions"><button id="addBulk" class="primary" type="button">Ajouter ces idées</button></div>
+    </details>
+  </section>
+
+  <div class="filters">
+    <input id="search" type="search" placeholder="🔎 Rechercher une idée…">
+  </div>
+
+  <section class="board">
+    <div class="column" data-status="todo">
+      <h3>📝 À faire <span class="count"></span></h3>
+      <div class="list"></div>
+    </div>
+    <div class="column" data-status="doing">
+      <h3>🎬 En cours <span class="count"></span></h3>
+      <div class="list"></div>
+    </div>
+    <div class="column" data-status="done">
+      <h3>✅ Réalisées <span class="count"></span></h3>
+      <div class="list"></div>
+    </div>
+  </section>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+<script src="ideas.js"></script>
+</body>
+</html>

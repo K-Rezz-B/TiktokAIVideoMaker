@@ -573,8 +573,10 @@ async function openSettings() {
   bindEvents();
   let list = await refreshProjectList();
   if (!list.length) { await api("POST", "/api/projects"); list = await refreshProjectList(); }
-  const last = localStorage.getItem("lastProject");
-  await openProject(list.some(p => p.id === last) ? last : list[0].id);
+  // ?project=… : ouverture directe depuis la page Idées
+  const wanted = new URLSearchParams(location.search).get("project") || localStorage.getItem("lastProject");
+  await openProject(list.some(p => p.id === wanted) ? wanted : list[0].id);
+  if (location.search) history.replaceState(null, "", location.pathname);
   await refreshKeyMode();
   await loadVoices();
 })();

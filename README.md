@@ -38,6 +38,17 @@ Gemini s'utilise depuis son appli ou [gemini.google.com](https://gemini.google.c
 5. Ajuste ce que tu veux (messages, voix, accroche…) : l'aperçu à droite se met à jour en direct.
    Puis **🎬 Générer la vidéo** et télécharge le MP4. Cette étape n'a besoin d'aucune clé.
 
+## 💡 Liste d'idées
+
+L'onglet **💡 Idées** (en haut de l'outil) sert à suivre tes idées de vidéos en 3 colonnes : **À faire**, **En cours**, **Réalisées**.
+
+- Ajoute une idée (et à qui tu fais la blague) avec le formulaire, ou colle-en plusieurs d'un coup, une par ligne : `l'ouvrier a peint la maison en rose | ma mère`.
+- Pas d'inspiration ? « 📋 Copier un prompt pour que Gemini me propose 10 idées » : colle-le dans Gemini, puis recolle sa réponse dans le même cadre.
+- **🎬 Créer la vidéo** crée le projet avec l'idée déjà remplie et ouvre l'éditeur. L'idée passe en « En cours », puis en « Réalisée » automatiquement dès que sa vidéo est générée.
+- Tu peux aussi glisser une carte d'une colonne à l'autre.
+
+Les idées sont enregistrées dans `projects/ideas.json` : copie le dossier `projects/` pour les retrouver sur un autre PC.
+
 ## Utilisation avec une clé API (facultatif)
 
 Dans **⚙️ Réglages**, colle une clé API Gemini ([aistudio.google.com/apikey](https://aistudio.google.com/apikey)) :

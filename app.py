@@ -13,7 +13,7 @@ from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from tiktokmaker import gemini, pipeline, projects, tts
+from tiktokmaker import gemini, ideas, pipeline, projects, tts
 from tiktokmaker.config import PROJECTS_DIR, STAGE_DIR, WEB_DIR, load_settings, save_settings
 
 HOST = "127.0.0.1"
@@ -265,6 +265,69 @@ def write_script(pid: str, body: ScriptRequest):
     return projects.save(apply_script(p, s))
 
 
+# --------------------------------- Idées ---------------------------------
+@app.get("/api/ideas")
+def list_ideas():
+    known = {p["id"]: p["title"] for p in projects.list_all()}
+    out = []
+    for idea in ideas.list_all():
+        pid = idea.get("project_id", "")
+        out.append({**idea, "project_exists": pid in known, "project_title": known.get(pid, "")})
+    return out
+
+
+class IdeaIn(BaseModel):
+    text: str = ""
+    character: str = ""
+    notes: str = ""
+    bulk: str = ""  # plusieurs idées, une par ligne
+
+
+@app.post("/api/ideas")
+def add_ideas(body: IdeaIn):
+    try:
+        if body.bulk.strip():
+            return ideas.add_many(body.bulk, body.character)
+        return [ideas.add(body.text, body.character, body.notes)]
+    except ValueError as exc:
+        _fail(exc)
+
+
+@app.put("/api/ideas/{idea_id}")
+def update_idea(idea_id: str, changes: dict):
+    try:
+        return ideas.update(idea_id, changes)
+    except KeyError as exc:
+        raise HTTPException(404, str(exc))
+
+
+@app.delete("/api/ideas/{idea_id}")
+def delete_idea(idea_id: str):
+    ideas.delete(idea_id)
+    return {"ok": True}
+
+
+@app.post("/api/ideas/{idea_id}/project")
+def project_from_idea(idea_id: str):
+    """Crée le projet vidéo à partir de l'idée (ou renvoie celui déjà lié)."""
+    idea = next((i for i in ideas.list_all() if i["id"] == idea_id), None)
+    if not idea:
+        raise HTTPException(404, "Idée introuvable")
+    if idea.get("project_id") and idea["project_id"] in {p["id"] for p in projects.list_all()}:
+        return {"project_id": idea["project_id"]}
+    p = projects.default_project(idea["text"][:60])
+    p["idea"] = idea["text"]
+    p["character"] = idea["character"] or p["character"]
+    projects.save(p)
+    ideas.update(idea_id, {"project_id": p["id"], "status": "doing" if idea["status"] == "todo" else idea["status"]})
+    return {"project_id": p["id"]}
+
+
+@app.get("/api/ideas/prompt")
+def ideas_prompt():
+    return {"prompt": ideas.suggest_prompt()}
+
+
 # ------------------ Mode manuel (Gemini gratuit, sans clé) ----------------
 @app.get("/api/projects/{pid}/prompts")
 def get_prompts(pid: str):
@@ -323,6 +386,7 @@ def _render(pid: str, progress) -> dict:
         p = projects.load(pid)
         p["output"] = out.name
         projects.save(p)
+        ideas.mark_done_for_project(pid)
         return {"video": f"/files/{pid}/{out.name}"}
 
 
