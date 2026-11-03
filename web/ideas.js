@@ -25,7 +25,12 @@ function toast(msg, error = false) {
 }
 
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-const fmtDate = iso => iso ? new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "short" }) : "";
+// Liens cliquables dans les notes (texte déjà échappé)
+const linkify = s => s.replace(/https?:\/\/[^\s<]+/g, u => {
+  const label = u.includes("youtube.com/shorts/") ? "▶ voir la vidéo" : u;
+  return `<a href="${u}" target="_blank" rel="noopener">${label}</a>`;
+});
+const fmtDate =iso => iso ? new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "short" }) : "";
 
 async function load() {
   ideas = await api("GET", "/api/ideas");
@@ -58,7 +63,7 @@ function cardHTML(i) {
       ${i.character ? `<span class="chip-who">${esc(i.character)}</span>` : ""}
       <span class="muted">${date}</span>
     </div>
-    ${i.notes ? `<div class="idea-notes">${esc(i.notes)}</div>` : ""}
+    ${i.notes ? `<div class="idea-notes">${linkify(esc(i.notes))}</div>` : ""}
     <div class="idea-actions">${actions}
       <span class="spacer"></span>
       <button class="ghost" data-act="edit" title="Modifier">✏️</button>
