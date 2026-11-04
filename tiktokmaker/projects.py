@@ -60,7 +60,7 @@ def default_project(title: str = "Nouvelle vidéo") -> dict:
             "rate": 10,
         },
         "audio": {"music": "", "music_volume": 0.12, "sfx": True},
-        "pace": 1.0,
+        "pace": 1.5,  # multiplie les pauses entre les messages (1.5 = 50 % plus long)
         "output": "",
     }
 

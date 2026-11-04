@@ -469,8 +469,55 @@ def series_overview():
             "problems": pipeline.problems(p), "messages": len(p["chat"].get("messages", [])),
             "video": f"/files/{p['id']}/{video}" if exists else "", "youtube_title": p.get("youtube_title", ""),
             "hook_text": p["hook"].get("text", ""),
+            "source": _img_url(p, projects.SOURCE_REF), "result": _img_url(p, projects.RESULT_REF),
+            "has_edit_prompt": bool(p["ai_app"].get("edit_prompt")),
         })
     return out
+
+
+def _img_url(p: dict, ref: str) -> str:
+    img = projects.find_image(p, ref)
+    return f"/files/{p['id']}/images/{img['file']}" if img else ""
+
+
+class BatchIdeas(BaseModel):
+    idea_ids: list
+    format: str = "prank"
+    text: str = ""
+
+
+def _batch_ideas(body: BatchIdeas) -> list:
+    known = {i["id"]: i for i in ideas.list_all()}
+    chosen = [known[i] for i in body.idea_ids if i in known]
+    if not chosen:
+        raise HTTPException(400, "Choisis au moins une idée.")
+    return chosen
+
+
+@app.post("/api/series/batch-prompt")
+def batch_prompt(body: BatchIdeas):
+    """Un seul prompt Gemini pour écrire les scripts de plusieurs idées d'un coup."""
+    return {"prompt": gemini.batch_prompt(_batch_ideas(body), body.format)}
+
+
+@app.post("/api/series/batch-import")
+def batch_import(body: BatchIdeas):
+    """Crée (ou réutilise) le projet de chaque idée et y applique le script correspondant, dans l'ordre."""
+    chosen = _batch_ideas(body)
+    try:
+        scripts = gemini.parse_batch(body.text)
+    except Exception as exc:
+        _fail(exc)
+    created = []
+    for idea, script in zip(chosen, scripts):
+        ideas.update(idea["id"], {"format": body.format})
+        pid = project_from_idea(idea["id"])["project_id"]
+        p = projects.load(pid)
+        if p.get("format") != body.format:
+            projects.apply_format(p, body.format)
+        projects.save(apply_script(p, script))
+        created.append(pid)
+    return {"project_ids": created, "scripts": len(scripts), "ideas": len(chosen)}
 
 
 class SeriesRequest(BaseModel):

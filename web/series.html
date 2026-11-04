@@ -19,6 +19,50 @@
 </header>
 
 <div class="ideas-wrap">
+  <section class="card" id="batch">
+    <h2>⚡ Créer plusieurs vidéos d'un coup</h2>
+    <p class="hint">Un seul prompt Gemini écrit tous les scripts du lot. Il ne reste ensuite qu'à ajouter les photos, puis à lancer le rendu.</p>
+
+    <div class="step">
+      <b>1.</b> Choisis le format et les idées du lot
+      <div class="row">
+        <label>Format
+          <select id="batchFormat">
+            <option value="story">💬 Histoire POV</option>
+            <option value="prank">⚡ Je fais croire à…</option>
+          </select>
+        </label>
+        <label class="narrow">Nombre<input id="batchCount" type="number" min="1" max="10" value="5"></label>
+        <button id="batchPick" class="ghost">↻ Prendre les meilleures idées à faire</button>
+      </div>
+      <div id="batchIdeas" class="batch-ideas"></div>
+    </div>
+
+    <div class="step">
+      <b>2.</b> Copie le prompt groupé dans Gemini<span class="only-batch-prank">, en joignant les photos originales dans le même ordre si tu les as</span>
+      <div class="actions">
+        <button id="batchCopy" class="primary">📋 Copier le prompt groupé</button>
+        <a class="button" href="https://gemini.google.com/app" target="_blank" rel="noopener">↗ Ouvrir Gemini</a>
+      </div>
+    </div>
+
+    <div class="step">
+      <b>3.</b> Colle <strong>toute</strong> la réponse de Gemini (le tableau <code>[ … ]</code>) : les projets sont créés d'un coup
+      <textarea id="batchPaste" rows="4" placeholder='[ { "title": "…", "hook_text": "…", "messages": [ … ] }, … ]'></textarea>
+      <div class="actions"><button id="batchImport" class="primary">📥 Créer les projets</button></div>
+    </div>
+
+    <div class="step" id="batchPhotosStep">
+      <b>4.</b> Ajoute les photos <span class="muted">(glisse une image sur un cadre, ou clique dessus)</span>
+      <label class="check story-same"><input type="checkbox" id="sameHook"> Utiliser la même photo d'accroche pour toutes les histoires POV du lot</label>
+      <div id="batchPhotos" class="batch-photos"></div>
+      <div class="actions">
+        <button id="batchRender" class="primary">▶ Rendre les vidéos du lot</button>
+        <button id="batchClear" class="ghost">Vider le lot</button>
+      </div>
+    </div>
+  </section>
+
   <section class="card">
     <h2>🎞️ Rendre plusieurs vidéos à la suite</h2>
     <p class="hint">Prépare tes projets dans l'éditeur (script, photos), coche-les ici puis lance la série : les vidéos sont rendues l'une après l'autre (≈ 1 min 30 chacune), tu peux faire autre chose pendant ce temps.</p>
@@ -53,6 +97,7 @@
   </section>
 </div>
 
+<input type="file" id="fileInput" accept="image/png,image/jpeg,image/webp" hidden>
 <div id="toast" class="toast hidden"></div>
 <script src="series.js"></script>
 </body>

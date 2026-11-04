@@ -238,6 +238,53 @@ def parse_script(text: str) -> dict:
     return {"messages": messages}
 
 
+def batch_prompt(items: list, fmt: str = "prank") -> str:
+    """Un seul prompt pour écrire plusieurs scripts d'un coup (items : [{"text", "character"}])."""
+    template = STORY_PROMPT if fmt == "story" else SCRIPT_PROMPT
+    head, rest = template.split("Idée de la vidéo :", 1)
+    schema = rest.split("cette forme :", 1)[1].strip().replace("{{", "{").replace("}}", "}")
+    if fmt != "story":
+        head = head.format(character="le proche indiqué pour chaque vidéo")
+    ideas = []
+    for n, it in enumerate(items, 1):
+        who = f" (blague faite à : {it['character']})" if fmt != "story" and it.get("character") else ""
+        ideas.append(f"{n}. {it['text'].strip()}{who}")
+    photos = ("\nSi des photos sont jointes, la photo n°1 correspond à la vidéo 1, la n°2 à la vidéo 2, etc. : "
+              "base edit_prompt sur ce qu'on voit dessus. Sinon, invente la photo d'origine (photo_prompt).\n"
+              if fmt != "story" else "")
+    n = len(items)
+    return (f"Tu vas écrire {n} scripts différents d'un coup, un pour chaque idée listée plus bas. Chaque script doit "
+            "être aussi long et travaillé que s'il était seul : ne les raccourcis pas, varie les répliques et les chutes.\n\n"
+            f"{head.strip()}\n\nLes {n} idées :\n" + "\n".join(ideas) + "\n" + photos +
+            f"\nRéponds UNIQUEMENT avec un tableau JSON de {n} objets, dans le même ordre que les idées, "
+            f"chacun de cette forme :\n[\n{schema},\n…\n]")
+
+
+def parse_batch(text: str) -> list:
+    """Lit la réponse à un prompt groupé : un tableau JSON de scripts (même entouré de texte ou de ```json)."""
+    text = (text or "").strip()
+    data = None
+    m = re.search(r"\[.*\]", text, re.S)
+    if m:
+        try:
+            data = json.loads(m.group(0))
+        except ValueError:
+            data = None
+    if not isinstance(data, list):
+        m = re.search(r"\{.*\}", text, re.S)
+        if m:
+            try:
+                obj = json.loads(m.group(0))
+                data = obj.get("videos") or obj.get("scripts") if isinstance(obj, dict) else None
+            except ValueError:
+                data = None
+    scripts = [d for d in data or [] if isinstance(d, dict) and d.get("messages")]
+    if not scripts:
+        raise GeminiError("Impossible de lire les scripts : colle toute la réponse de Gemini (le tableau JSON [ … ]). "
+                          "Si sa réponse est coupée avant la fin, refais le lot avec moins de vidéos (3 par exemple).")
+    return scripts
+
+
 def write_script(idea: str, character: str, source_photo: Path = None, fmt: str = "prank") -> dict:
     settings = load_settings()
     if fmt == "story":

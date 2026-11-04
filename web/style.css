@@ -175,6 +175,26 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .kit-body label { margin-top: 6px; }
 .kit-body textarea, .kit-body input { font-size: 12.5px; }
 
+/* ---------- Lot (création groupée) ---------- */
+#batch .step { margin-top: 10px; }
+#batch .step textarea { margin-top: 8px; }
+.batch-ideas { max-height: 260px; overflow: auto; margin-top: 10px; border: 1px solid var(--line); border-radius: 10px; padding: 4px 8px; background: #111318; }
+.batch-ideas .bi { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; margin: 0; padding: 6px 2px;
+  border-bottom: 1px solid var(--line); font-size: 13px; color: var(--text); cursor: pointer; }
+.batch-ideas .bi:last-child { border-bottom: 0; }
+body.batch-story .only-batch-prank, body:not(.batch-story) .story-same { display: none !important; }
+.story-same { margin: 8px 0 4px; }
+.batch-photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin-top: 10px; }
+.bp { background: #111318; border: 1px solid var(--line); border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+.bp .actions { margin-top: 4px; gap: 6px; }
+.bp .actions button, .bp .actions .button { padding: 5px 9px; font-size: 12.5px; }
+.slots { display: flex; gap: 8px; }
+.slot { flex: 1; height: 150px; border: 1.5px dashed var(--line); border-radius: 9px; display: flex; align-items: center; justify-content: center;
+  color: var(--muted); font-size: 12.5px; cursor: pointer; overflow: hidden; background: #0d0e12; text-align: center; padding: 4px; }
+.slot.has { border-style: solid; border-color: #2f6d43; padding: 0; }
+.slot img { width: 100%; height: 100%; object-fit: cover; }
+.slot.over, .slot:hover { border-color: var(--accent); }
+
 @media (max-width: 980px) {
   .board { grid-template-columns: 1fr; }
   main { grid-template-columns: 1fr; }

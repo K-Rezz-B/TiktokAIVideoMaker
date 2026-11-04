@@ -102,6 +102,7 @@ function render() {
     $("#overallMsg").textContent = job.status === "error" ? job.error : job.message;
   }
   renderKits();
+  renderBatch();
 }
 
 function renderKits() {
@@ -122,11 +123,168 @@ function renderKits() {
     </div>`).join("") || `<p class="muted">Aucune vidéo pour l'instant : lance une série ci-dessus.</p>`;
 }
 
+/* --------------------- Lot : idées -> prompt groupé -> photos ---------------------- */
+let allIdeas = [];
+let batch = JSON.parse(localStorage.getItem("batch") || "null") || { format: "story", ideaIds: [], projectIds: [] };
+let uploadTarget = null;
+const saveBatch = () => localStorage.setItem("batch", JSON.stringify(batch));
+
+// Même ordre que la page Idées : tes idées d'abord, puis les plus vues
+const ideaOrder = (a, b) => (a.views ? 1 : 0) - (b.views ? 1 : 0) || (b.views || 0) - (a.views || 0)
+  || (b.created || "").localeCompare(a.created || "");
+
+function candidates() {
+  return allIdeas.filter(i => (i.format === "story" ? "story" : "prank") === batch.format && i.status === "todo")
+    .sort(ideaOrder).slice(0, 40);
+}
+
+function renderBatch() {
+  $("#batchFormat").value = batch.format;
+  document.body.classList.toggle("batch-story", batch.format === "story");
+  const list = candidates();
+  const fmtViews = v => !v ? "ton idée" : v >= 1e6 ? `${(v / 1e6).toFixed(1).replace(".", ",")} M vues` : `${Math.round(v / 1e3)} k vues`;
+  $("#batchIdeas").innerHTML = list.map(i => `
+    <label class="check bi"><input type="checkbox" data-idea="${i.id}" ${batch.ideaIds.includes(i.id) ? "checked" : ""}>
+      <span>${esc(i.text)}${i.character ? ` <small class="chip-who">${esc(i.character)}</small>` : ""}</span>
+      <small class="muted">${fmtViews(i.views)}</small></label>`).join("")
+    || `<p class="muted">Aucune idée « à faire » dans ce format : ajoute-en dans la page Idées.</p>`;
+  const n = batch.ideaIds.length;
+  $("#batchCopy").textContent = n ? `📋 Copier le prompt groupé (${n} idée${n > 1 ? "s" : ""})` : "📋 Copier le prompt groupé";
+
+  const items = batch.projectIds.map(id => projects.find(p => p.id === id)).filter(Boolean);
+  $("#batchPhotosStep").classList.toggle("hidden", !items.length);
+  $("#batchPhotos").innerHTML = items.map(p => {
+    const story = p.format === "story";
+    const slot = (role, url, label) => `
+      <div class="slot ${url ? "has" : ""}" data-pid="${p.id}" data-role="${role}" title="Glisse une image ou clique">
+        ${url ? `<img src="${url}">` : `<span>${label}</span>`}
+      </div>`;
+    return `<div class="bp" data-pid="${p.id}">
+      <div class="p-title">${esc(p.title)}</div>
+      <div class="bp-state">${p.video ? `<span class="badge ok">🎬 Vidéo prête</span>`
+        : p.problems.length ? `<span class="badge warn">⚠️ ${esc(p.problems.join(", "))}</span>` : `<span class="badge ready">✅ Prêt</span>`}</div>
+      <div class="slots">
+        ${story ? slot("source", p.source, "📷 Photo d'accroche")
+                : slot("source", p.source, "📷 Photo originale") + slot("result", p.result, "✨ Photo modifiée")}
+      </div>
+      <div class="actions">
+        ${!story ? `<button data-prompt="edit" ${p.has_edit_prompt ? "" : "disabled"}>📋 Consigne de retouche</button>` : ""}
+        <button class="ghost" data-prompt="photo">📋 Prompt photo</button>
+        <a class="button ghost" href="index.html?project=${encodeURIComponent(p.id)}">✏️</a>
+      </div>
+    </div>`;
+  }).join("");
+  const ready = items.filter(p => !p.problems.length && !p.video).length;
+  $("#batchRender").textContent = ready ? `▶ Rendre les ${ready} vidéo${ready > 1 ? "s" : ""} prête${ready > 1 ? "s" : ""}` : "▶ Rendre les vidéos du lot";
+  $("#batchRender").disabled = !ready || job?.status === "running";
+}
+
+async function uploadPhoto(pid, role, file) {
+  const targets = [pid];
+  const p = projects.find(x => x.id === pid);
+  if (role === "source" && p?.format === "story" && $("#sameHook").checked) {
+    batch.projectIds.forEach(id => { const q = projects.find(x => x.id === id); if (q && q.format === "story" && id !== pid) targets.push(id); });
+  }
+  for (const id of targets) {
+    const fd = new FormData();
+    fd.append("file", file, file.name || "photo.png");
+    const r = await fetch(`/api/projects/${id}/images/upload?role=${role}`, { method: "POST", body: fd });
+    if (!r.ok) { toast((await r.json()).detail || "Échec de l'import", true); return; }
+  }
+  toast(targets.length > 1 ? `📷 Photo ajoutée à ${targets.length} vidéos` : "📷 Photo ajoutée");
+  await load();
+}
+
+function bindBatch() {
+  $("#batchFormat").addEventListener("change", e => { batch.format = e.target.value; batch.ideaIds = []; saveBatch(); renderBatch(); });
+  $("#batchIdeas").addEventListener("change", e => {
+    const id = e.target.dataset.idea;
+    if (!id) return;
+    batch.ideaIds = e.target.checked ? [...batch.ideaIds, id] : batch.ideaIds.filter(x => x !== id);
+    saveBatch(); renderBatch();
+  });
+  $("#batchPick").addEventListener("click", () => {
+    const n = Math.max(1, Math.min(10, +$("#batchCount").value || 5));
+    batch.ideaIds = candidates().slice(0, n).map(i => i.id);
+    saveBatch(); renderBatch();
+  });
+  $("#batchCopy").addEventListener("click", async () => {
+    if (!batch.ideaIds.length) return toast("Coche d'abord les idées du lot.", true);
+    try {
+      const { prompt } = await api("POST", "/api/series/batch-prompt", { idea_ids: orderedIdeas(), format: batch.format });
+      await copy(prompt);
+      toast(`📋 Prompt copié pour ${batch.ideaIds.length} vidéos — colle-le dans Gemini`);
+    } catch (err) { toast(err.message, true); }
+  });
+  $("#batchImport").addEventListener("click", async () => {
+    const text = $("#batchPaste").value.trim();
+    if (!text) return toast("Colle d'abord la réponse de Gemini.", true);
+    try {
+      const r = await api("POST", "/api/series/batch-import", { idea_ids: orderedIdeas(), format: batch.format, text });
+      batch.projectIds = [...new Set([...r.project_ids, ...batch.projectIds])];
+      batch.ideaIds = [];
+      saveBatch();
+      $("#batchPaste").value = "";
+      allIdeas = await api("GET", "/api/ideas");
+      await load();
+      toast(r.scripts < r.ideas ? `⚠️ ${r.scripts} scripts reçus pour ${r.ideas} idées : ${r.project_ids.length} projets créés`
+                                : `📝 ${r.project_ids.length} projets créés — ajoute les photos`);
+      $("#batchPhotosStep").scrollIntoView({ behavior: "smooth" });
+    } catch (err) { toast(err.message, true); }
+  });
+
+  // Cadres photo : clic ou glisser-déposer
+  $("#batchPhotos").addEventListener("click", async e => {
+    const slot = e.target.closest(".slot");
+    if (slot) { uploadTarget = slot.dataset; $("#fileInput").click(); return; }
+    const btn = e.target.closest("[data-prompt]");
+    if (!btn) return;
+    const pid = btn.closest(".bp").dataset.pid;
+    const prompts = await api("GET", `/api/projects/${pid}/prompts`);
+    const text = prompts[btn.dataset.prompt];
+    if (!text) return toast("Rien à copier pour ce projet (consigne vide).", true);
+    await copy(text);
+    toast(btn.dataset.prompt === "edit" ? "📋 Consigne copiée — joins la photo originale dans Gemini" : "📋 Prompt photo copié");
+  });
+  $("#fileInput").addEventListener("change", e => {
+    const file = e.target.files[0];
+    e.target.value = "";
+    if (file && uploadTarget) uploadPhoto(uploadTarget.pid, uploadTarget.role, file);
+  });
+  $("#batchPhotos").addEventListener("dragover", e => { const s = e.target.closest(".slot"); if (s) { e.preventDefault(); s.classList.add("over"); } });
+  $("#batchPhotos").addEventListener("dragleave", e => e.target.closest(".slot")?.classList.remove("over"));
+  $("#batchPhotos").addEventListener("drop", e => {
+    const s = e.target.closest(".slot");
+    if (!s) return;
+    e.preventDefault();
+    s.classList.remove("over");
+    const file = [...e.dataTransfer.files].find(f => f.type.startsWith("image/"));
+    if (file) uploadPhoto(s.dataset.pid, s.dataset.role, file);
+  });
+
+  $("#batchRender").addEventListener("click", async () => {
+    const ids = batch.projectIds.filter(id => { const p = projects.find(x => x.id === id); return p && !p.problems.length && !p.video; });
+    try {
+      job = await api("POST", "/api/series/render", { ids });
+      toast(`▶ Rendu de ${ids.length} vidéo(s) lancé`);
+      poll();
+    } catch (err) { toast(err.message, true); }
+  });
+  $("#batchClear").addEventListener("click", () => { batch.projectIds = []; batch.ideaIds = []; saveBatch(); renderBatch(); });
+}
+
+// Les idées cochées, dans l'ordre d'affichage (= l'ordre des scripts demandés à Gemini)
+function orderedIdeas() {
+  const order = candidates().map(i => i.id);
+  return [...batch.ideaIds].sort((a, b) => order.indexOf(a) - order.indexOf(b));
+}
+
 /* ------------------------------ Données ----------------------------- */
 async function load() {
   projects = await api("GET", "/api/series");
   const ids = new Set(projects.map(p => p.id));
   for (const id of [...selected]) if (!ids.has(id)) selected.delete(id);
+  batch.projectIds = batch.projectIds.filter(id => ids.has(id));
   render();
 }
 
@@ -182,4 +340,5 @@ function bind() {
 }
 
 bind();
-load().then(poll);
+bindBatch();
+api("GET", "/api/ideas").then(list => { allIdeas = list; }).then(load).then(poll);

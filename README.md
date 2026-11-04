@@ -58,6 +58,20 @@ committe et pousse après avoir modifié tes idées, puis `git pull` sur l'autre
 
 ## 🎞️ Mode série (plusieurs vidéos d'un coup)
 
+### ⚡ Créer plusieurs vidéos d'un coup (prompt groupé)
+
+En haut de l'onglet **🎞️ Série** :
+
+1. Choisis le format et le nombre de vidéos (5 par défaut), puis « Prendre les meilleures idées à faire » (ou coche-les toi-même).
+2. **📋 Copier le prompt groupé** : un seul prompt Gemini écrit tous les scripts du lot. Pour le format « Je fais croire à… », joins les photos originales dans le même ordre si tu les as.
+3. Colle toute la réponse de Gemini → **📥 Créer les projets** : un projet par idée, script déjà rempli (les idées passent « en cours »).
+4. Ajoute les photos dans les cadres (glisser-déposer ou clic). Pour les histoires POV, une case permet d'utiliser la même photo d'accroche pour tout le lot. Pour le format « Je fais croire à… », un bouton copie la consigne de retouche de chaque vidéo (une retouche par demande dans Gemini).
+5. **▶ Rendre les vidéos du lot**.
+
+Si la réponse de Gemini est coupée avant la fin, refais le lot avec moins de vidéos (3).
+
+### Rendu en série
+
 L'onglet **🎞️ Série** liste tous tes projets avec leur état : ✅ prêt, ⚠️ à compléter (avec la raison) ou 🎬 vidéo déjà faite.
 
 1. Prépare plusieurs projets dans l'éditeur (script importé, photos).
