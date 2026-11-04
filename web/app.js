@@ -492,6 +492,14 @@ function bindEvents() {
   });
 
   $("#render").addEventListener("click", () => runJob(`/api/projects/${project.id}/render`));
+  $("#exportBtn").addEventListener("click", async () => {
+    await saveNow();
+    try {
+      const r = await api("POST", `/api/projects/${project.id}/export`);
+      toast(`📁 Exporté dans ${r.folder}`);
+      api("POST", "/api/open-folder", { name: r.name }).catch(() => {});
+    } catch (e) { toast(e.message, true); }
+  });
 
   // Mode manuel : prompts à copier dans Gemini, réponses / images à recoller ici
   const copyPrompt = (kind, missing, done) => async () => {
@@ -608,6 +616,7 @@ async function openSettings() {
   const s = await api("GET", "/api/settings");
   const form = $("#settings form");
   for (const [k, v] of Object.entries(s)) if (form.elements[k]) form.elements[k].value = v;
+  $("#exportRootHint").textContent = `Les exports vont actuellement dans : ${s.export_root}`;
   $("#settings").showModal();
 }
 

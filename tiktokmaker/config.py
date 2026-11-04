@@ -14,6 +14,7 @@ DEFAULT_SETTINGS = {
     "gemini_image_model": "gemini-2.5-flash-image",
     "gemini_text_model": "gemini-2.5-flash",
     "elevenlabs_api_key": "",
+    "export_dir": "",  # vide = ~/Videos/ShortMakers
 }
 
 

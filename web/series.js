@@ -34,21 +34,9 @@ function slug(s) {
     .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "video";
 }
 
-// Légende TikTok / Instagram : le titre généré (avec hashtags), sinon l'accroche
-function caption(p) {
-  let c = (p.youtube_title || p.hook_text || p.title || "").trim();
-  if (!c.includes("#")) c += " #sms #message #humour";
-  return c;
-}
-
-// Titre YouTube Shorts : 100 caractères max, avec #shorts
-function ytTitle(p) {
-  let t = caption(p);
-  if (!/#shorts/i.test(t)) t = `${t} #shorts`;
-  while (t.length > 100 && t.includes(" #")) t = t.replace(/\s#[^\s#]+(?=[^#]*$)/, "").trim();  // retire les derniers hashtags
-  if (!/#shorts/i.test(t) && t.length <= 92) t += " #shorts";
-  return t.slice(0, 100);
-}
+// Légende et titre YouTube calculés par le serveur (tiktokmaker/export.py), comme dans légende.txt
+const caption = p => p.caption;
+const ytTitle = p => p.yt_title;
 
 async function copy(text) {
   try { await navigator.clipboard.writeText(text); }
@@ -117,7 +105,9 @@ function renderKits() {
         <div class="actions">
           <button data-copy="caption">📋 Copier la légende</button>
           <button data-copy="yt">📋 Copier le titre YouTube</button>
-          <a class="button primary" href="${p.video}" download="${slug(p.title)}.mp4">⬇️ Télécharger</a>
+          <button class="primary" data-export>📁 ${p.exported ? "Ré-exporter" : "Exporter"}</button>
+          ${p.exported ? `<button class="ghost" data-open title="Ouvrir le dossier de cette vidéo">📂</button>` : ""}
+          <a class="button ghost" href="${p.video}" download="${slug(p.title)}.mp4" title="Télécharger seulement la vidéo">MP4 seul</a>
         </div>
       </div>
     </div>`).join("") || `<p class="muted">Aucune vidéo pour l'instant : lance une série ci-dessus.</p>`;
@@ -331,14 +321,34 @@ function bind() {
     toast("La série s'arrêtera après la vidéo en cours");
   });
   $("#kits").addEventListener("click", async e => {
-    const btn = e.target.closest("[data-copy]");
-    if (!btn) return;
-    const p = projects.find(x => x.id === btn.closest(".kit").dataset.id);
-    await copy(btn.dataset.copy === "yt" ? ytTitle(p) : caption(p));
-    toast("📋 Copié");
+    const kit = e.target.closest(".kit");
+    if (!kit) return;
+    const p = projects.find(x => x.id === kit.dataset.id);
+    try {
+      if (e.target.closest("[data-copy]")) {
+        await copy(e.target.closest("[data-copy]").dataset.copy === "yt" ? ytTitle(p) : caption(p));
+        toast("📋 Copié");
+      } else if (e.target.closest("[data-export]")) {
+        const r = await api("POST", `/api/projects/${p.id}/export`);
+        toast(`📁 Exporté dans « ${r.name} »`);
+        await load();
+      } else if (e.target.closest("[data-open]")) {
+        await api("POST", "/api/open-folder", { name: p.export_name || "" });
+      }
+    } catch (err) { toast(err.message, true); }
   });
+  $("#exportAll").addEventListener("click", async () => {
+    const ids = projects.filter(p => p.video && !p.exported).map(p => p.id);
+    if (!ids.length) return toast("Toutes les vidéos sont déjà exportées.");
+    const r = await api("POST", "/api/series/export-all", { ids });
+    toast(r.errors.length ? `⚠️ ${r.exported.length} exportées, ${r.errors.length} en erreur` : `📁 ${r.exported.length} vidéo(s) exportée(s)`,
+          !!r.errors.length);
+    await load();
+  });
+  $("#openRoot").addEventListener("click", () => api("POST", "/api/open-folder", {}).catch(err => toast(err.message, true)));
 }
 
 bind();
 bindBatch();
+api("GET", "/api/settings").then(s => { $("#exportRoot").textContent = s.export_root; });
 api("GET", "/api/ideas").then(list => { allIdeas = list; }).then(load).then(poll);

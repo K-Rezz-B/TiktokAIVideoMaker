@@ -92,7 +92,13 @@
 
   <section class="card">
     <h2>📤 Kit de publication</h2>
-    <p class="hint">Pour chaque vidéo : la légende à coller sur TikTok et Instagram, le titre pour YouTube Shorts (100 caractères max, avec #shorts), et le MP4 nommé proprement. Pense à cocher l'option « contenu généré par IA » à la publication.</p>
+    <p class="hint">Pour chaque vidéo : la légende TikTok / Instagram et le titre YouTube Shorts (100 caractères max, avec #shorts).
+      <b>📁 Exporter</b> crée un dossier au nom du titre avec la vidéo, l'image et <code>légende.txt</code> dans
+      <code id="exportRoot">…</code> (modifiable dans les Réglages de l'éditeur). Pense à cocher l'option « contenu généré par IA » à la publication.</p>
+    <div class="actions">
+      <button id="exportAll" class="primary">📁 Exporter toutes les vidéos pas encore exportées</button>
+      <button id="openRoot" class="ghost">📂 Ouvrir le dossier d'export</button>
+    </div>
     <div id="kits" class="kits"></div>
   </section>
 </div>

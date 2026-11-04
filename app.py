@@ -13,7 +13,7 @@ from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from tiktokmaker import gemini, ideas, pipeline, projects, tts
+from tiktokmaker import export, gemini, ideas, pipeline, projects, tts
 from tiktokmaker.config import PROJECTS_DIR, STAGE_DIR, WEB_DIR, load_settings, save_settings
 
 HOST = "127.0.0.1"
@@ -57,7 +57,8 @@ def _mask(v: str) -> str:
 @app.get("/api/settings")
 def get_settings():
     s = load_settings()
-    return {**s, "gemini_api_key": _mask(s["gemini_api_key"]), "elevenlabs_api_key": _mask(s["elevenlabs_api_key"])}
+    return {**s, "gemini_api_key": _mask(s["gemini_api_key"]), "elevenlabs_api_key": _mask(s["elevenlabs_api_key"]),
+            "export_root": str(export.export_root())}
 
 
 @app.put("/api/settings")
@@ -124,6 +125,7 @@ def put_project(pid: str, data: dict):
     data["id"] = pid
     data["images"] = current["images"]  # gérées par les routes dédiées
     data["output"] = current.get("output", "")
+    data["export_folder"] = current.get("export_folder", "")
     return projects.save(data)
 
 
@@ -471,8 +473,51 @@ def series_overview():
             "hook_text": p["hook"].get("text", ""),
             "source": _img_url(p, projects.SOURCE_REF), "result": _img_url(p, projects.RESULT_REF),
             "has_edit_prompt": bool(p["ai_app"].get("edit_prompt")),
+            "caption": export.caption(p), "yt_title": export.youtube_title(p),
+            "exported": bool(p.get("export_folder")) and (export.export_root() / p["export_folder"]).exists(),
+            "export_name": p.get("export_folder", ""),
         })
     return out
+
+
+# ------------------------------- Export ---------------------------------
+def _export(pid: str) -> dict:
+    p = _load(pid)
+    try:
+        folder = export.export_project(p)
+    except (FileNotFoundError, OSError) as exc:
+        _fail(exc)
+    projects.save(p)
+    return {"folder": str(folder), "name": folder.name}
+
+
+@app.post("/api/projects/{pid}/export")
+def export_one(pid: str):
+    """Copie vidéo + image + légende dans <dossier d'export>/<titre de la vidéo>/."""
+    return _export(pid)
+
+
+@app.post("/api/series/export-all")
+def export_all(body: dict):
+    done, errors = [], []
+    for pid in body.get("ids") or []:
+        try:
+            done.append(_export(pid)["name"])
+        except HTTPException as exc:
+            errors.append(f"{pid} : {exc.detail}")
+    return {"exported": done, "errors": errors, "root": str(export.export_root())}
+
+
+@app.post("/api/open-folder")
+def open_folder(body: dict):
+    """Ouvre le dossier d'export (ou un de ses sous-dossiers) dans l'explorateur."""
+    root = export.export_root().resolve()
+    target = (root / (body.get("name") or "")).resolve()
+    if root != target and root not in target.parents:
+        raise HTTPException(400, "Dossier hors du dossier d'export")
+    target.mkdir(parents=True, exist_ok=True)
+    export.open_folder(target)
+    return {"ok": True, "path": str(target)}
 
 
 def _img_url(p: dict, ref: str) -> str:

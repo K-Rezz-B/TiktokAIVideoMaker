@@ -206,7 +206,8 @@
     </div>
     <div id="result" class="result hidden">
       <video id="video" controls playsinline></video>
-      <a id="download" class="button primary" download>⬇️ Télécharger le MP4</a>
+      <button id="exportBtn" class="primary">📁 Exporter (vidéo + image + légende)</button>
+      <a id="download" class="button ghost" download>MP4 seul</a>
     </div>
     <div class="card small">
       <div class="label">Titre YouTube / TikTok</div>
@@ -226,6 +227,9 @@
     <datalist id="modelList"></datalist>
     <button type="button" id="loadModels" class="ghost">Charger la liste des modèles disponibles</button>
     <label>Clé API ElevenLabs (facultatif)<input name="elevenlabs_api_key" autocomplete="off"></label>
+    <label>Dossier d'export des vidéos (un sous-dossier par vidéo)
+      <input name="export_dir" placeholder="E:\ShortMakers"></label>
+    <p class="hint" id="exportRootHint"></p>
     <div class="actions">
       <button value="cancel" class="ghost">Annuler</button>
       <button id="saveSettings" value="save" class="primary">Enregistrer</button>

@@ -78,6 +78,12 @@ L'onglet **🎞️ Série** liste tous tes projets avec leur état : ✅ prêt, 
 2. Dans **Série**, clique « Cocher les projets prêts sans vidéo » puis **▶ Lancer la série** : les vidéos sont rendues l'une après l'autre (≈ 1 min 30 chacune). Tu peux arrêter après la vidéo en cours.
 3. Le **kit de publication** donne, pour chaque vidéo, la légende TikTok / Instagram et le titre YouTube Shorts (100 caractères max, avec #shorts) à copier, et le MP4 à télécharger avec un nom propre.
 
+**📁 Exporter** (dans le kit de publication ou sous la vidéo dans l'éditeur) crée dans le dossier d'export
+un sous-dossier au nom du titre YouTube de la vidéo, avec la vidéo, l'image d'accroche et `légende.txt`
+(légende TikTok / Instagram + titre YouTube). Le dossier d'export se règle dans ⚙️ Réglages
+(par défaut : `Vidéos/ShortMakers` dans ton dossier personnel). Un dossier existant que l'outil n'a pas créé
+lui-même n'est jamais modifié : l'export prend alors le nom « titre (2) ».
+
 Astuce : prépare 10 à 15 projets le week-end, lance la série, puis programme les publications (YouTube Studio, TikTok sur ordinateur, Meta Business Suite pour Instagram).
 
 ## Utilisation avec une clé API (facultatif)
